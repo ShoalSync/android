@@ -28,7 +28,7 @@ pids+=($!)
 
 # The laptop: a daemon holding the user key, with one folder and one file.
 tidefelld init --data-dir "$work/laptop" --name laptop
-user=$(tidefelld id --data-dir "$work/laptop" | sed -n 's/^user: //p')
+user=$(tidefelld id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
 folder=$(tidefelld new-folder-id)
 mkdir -p "$work/Photos"
 printf 'sand and sea' > "$work/Photos/beach.jpg"
@@ -49,6 +49,11 @@ scan_interval_secs = 1
 TOML
 RUST_LOG=info,tidefell_net=debug tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
 pids+=($!)
+for _ in $(seq 1 30); do
+  [ -S "$work/laptop/control.sock" ] && break
+  sleep 1
+done
+[ -S "$work/laptop/control.sock" ] || { echo "tidefelld did not start" >&2; exit 1; }
 
 # Approve the emulator's pairing code as soon as it appears in logcat.
 adb logcat -c
