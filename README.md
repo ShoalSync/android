@@ -18,6 +18,10 @@ file sync with no central server.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). A signed CLA is required.
 
+## Conventions
+
+Read [CONVENTIONS.md](CONVENTIONS.md) before making changes.
+
 ## License
 
 [GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`).
