@@ -49,7 +49,8 @@ jobs:
 
   exit-criterion:
     name: Exit criterion on an emulator
-    runs-on: self-hosted
+    # The emulator needs KVM, which the self-hosted runner lacks; GitHub's images have it.
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
