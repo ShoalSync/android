@@ -33,3 +33,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# The tidefell-ffi AAR, fetched by scripts/fetch-ffi.sh
+app/libs/*.aar

@@ -9,8 +9,9 @@ peer, the `DocumentsProvider` for placeholders, camera-roll backup and the Gradl
 
 ## Consumes
 
-- `org.tidefell:tidefell-ffi` AAR from monorepo releases, pinned in
-  `gradle/libs.versions.toml` (from Phase 4).
+- The `tidefell-ffi-X.Y.Z.aar` attached to monorepo releases (ADR 0014), pinned in
+  `gradle/libs.versions.toml` (`tidefell = "X.Y.Z"`) and fetched by `scripts/fetch-ffi.sh`.
+- The same release's `tidefelld` for the emulator exit-criterion test.
 - The generated Kotlin API in package `org.tidefell.ffi`.
 
 ## Change order
