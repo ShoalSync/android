@@ -13,7 +13,7 @@ env:
 jobs:
   build:
     name: Build and unit checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       # The monorepo is private. The org's GitHub App mints a token, valid for an hour, that can
@@ -32,6 +32,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      - uses: android-actions/setup-android@v3
       - name: Fetch the pinned tidefell-ffi AAR
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -45,7 +47,7 @@ jobs:
 
   exit-criterion:
     name: Exit criterion on an emulator
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +65,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      - uses: android-actions/setup-android@v3
       - name: Fetch the pinned AAR and tidefelld
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -74,6 +78,7 @@ jobs:
           sha256sum --check "$name.tar.gz.sha256"
           tar -xzf "$name.tar.gz"
           echo "$PWD/$name" >> "$GITHUB_PATH"
+      - uses: dtolnay/rust-toolchain@stable
       - name: Cache iroh-relay
         id: relay
         uses: actions/cache@v4
