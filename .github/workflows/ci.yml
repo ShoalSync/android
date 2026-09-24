@@ -96,6 +96,12 @@ jobs:
       - name: Build iroh-relay
         if: steps.relay.outputs.cache-hit != 'true'
         run: cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server
+      # The cache restores into ~/.cargo/bin, which GitHub's images have on PATH and a
+      # self-hosted runner may not.
+      - name: Put iroh-relay on PATH
+        run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/iroh-relay" --version
       - name: Enable KVM
         # GitHub's images need a udev rule to open /dev/kvm; the self-hosted runner's user is
         # already in the kvm group.
