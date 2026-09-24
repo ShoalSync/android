@@ -87,21 +87,23 @@ jobs:
           tar -xzf "$name.tar.gz"
           echo "$PWD/$name" >> "$GITHUB_PATH"
       - uses: dtolnay/rust-toolchain@stable
+      # Keyed by runner type: the cache stores paths relative to the workspace, which sits at a
+      # different depth on GitHub's images and on the self-hosted runner.
       - name: Cache iroh-relay
         id: relay
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/iroh-relay
-          key: iroh-relay-${{ env.IROH_RELAY_VERSION }}
+          path: ~/.local/iroh-relay
+          key: iroh-relay-${{ runner.environment }}-${{ env.IROH_RELAY_VERSION }}
       - name: Build iroh-relay
         if: steps.relay.outputs.cache-hit != 'true'
-        run: cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server
-      # The cache restores into ~/.cargo/bin, which GitHub's images have on PATH and a
-      # self-hosted runner may not.
+        run: >
+          cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server
+          --root "$HOME/.local/iroh-relay"
       - name: Put iroh-relay on PATH
         run: |
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
-          "$HOME/.cargo/bin/iroh-relay" --version
+          echo "$HOME/.local/iroh-relay/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/iroh-relay/bin/iroh-relay" --version
       - name: Enable KVM
         # GitHub's images need a udev rule to open /dev/kvm; the self-hosted runner's user is
         # already in the kvm group.
