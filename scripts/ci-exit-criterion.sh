@@ -25,6 +25,11 @@ ip addr show lo | grep -q "10.0.2.2/32" || sudo ip addr add 10.0.2.2/32 dev lo
 printf 'enable_metrics = false\nhttp_bind_addr = "0.0.0.0:3340"\n' > "$work/relay.toml"
 iroh-relay --dev --config-path "$work/relay.toml" > "$work/relay.log" 2>&1 &
 pids+=($!)
+for _ in $(seq 1 30); do
+  (exec 3<>/dev/tcp/127.0.0.1/3340) 2>/dev/null && break
+  sleep 1
+done
+(exec 3<>/dev/tcp/127.0.0.1/3340) 2>/dev/null || { echo "iroh-relay did not start" >&2; exit 1; }
 
 # The laptop: a daemon holding the user key, with one folder and one file.
 tidefelld init --data-dir "$work/laptop" --name laptop

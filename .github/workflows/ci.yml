@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Branch pushes are covered by their pull request; one runner serves every repo.
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -13,7 +15,7 @@ env:
 jobs:
   build:
     name: Build and unit checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       # The monorepo is private. The org's GitHub App mints a token, valid for an hour, that can
@@ -32,6 +34,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      - uses: android-actions/setup-android@v3
+        with:
+          # The default also asks for `tools`, which the SDK repository no longer carries.
+          packages: platform-tools
       - name: Fetch the pinned tidefell-ffi AAR
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -45,7 +52,7 @@ jobs:
 
   exit-criterion:
     name: Exit criterion on an emulator
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +70,11 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      - uses: android-actions/setup-android@v3
+        with:
+          # The default also asks for `tools`, which the SDK repository no longer carries.
+          packages: platform-tools
       - name: Fetch the pinned AAR and tidefelld
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -74,17 +86,32 @@ jobs:
           sha256sum --check "$name.tar.gz.sha256"
           tar -xzf "$name.tar.gz"
           echo "$PWD/$name" >> "$GITHUB_PATH"
+      - uses: dtolnay/rust-toolchain@stable
+      # Keyed by runner type: the cache stores paths relative to the workspace, which sits at a
+      # different depth on GitHub's images and on the self-hosted runner.
       - name: Cache iroh-relay
         id: relay
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/iroh-relay
-          key: iroh-relay-${{ env.IROH_RELAY_VERSION }}
+          path: ~/.local/iroh-relay
+          key: iroh-relay-${{ runner.environment }}-${{ env.IROH_RELAY_VERSION }}
       - name: Build iroh-relay
         if: steps.relay.outputs.cache-hit != 'true'
-        run: cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server
-      - name: Enable KVM
+        run: >
+          cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server
+          --root "$HOME/.local/iroh-relay"
+      - name: Put iroh-relay on PATH
         run: |
+          echo "$HOME/.local/iroh-relay/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/iroh-relay/bin/iroh-relay" --version
+      - name: Enable KVM
+        # GitHub's images need a udev rule to open /dev/kvm; the self-hosted runner's user is
+        # already in the kvm group.
+        run: |
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            echo "KVM is usable"
+            exit 0
+          fi
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
