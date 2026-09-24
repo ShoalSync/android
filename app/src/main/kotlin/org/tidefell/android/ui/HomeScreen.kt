@@ -14,6 +14,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,18 +37,35 @@ import org.tidefell.ffi.Folder
 fun HomeScreen() {
     val node by Peer.node.collectAsState()
     var open by remember { mutableStateOf<Folder?>(null) }
+    var settings by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         Peer.start()
         Peer.events.collect { revision++ }
     }
-    BackHandler(enabled = open != null) { open = null }
+    BackHandler(enabled = open != null || settings) {
+        if (settings) settings = false else open = null
+    }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(open?.let(Peer::folderName) ?: "Tidefell") }) }) { padding ->
+    val title = when {
+        settings -> "Settings"
+        else -> open?.let(Peer::folderName) ?: "Tidefell"
+    }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                actions = {
+                    if (!settings && open == null) TextButton(onClick = { settings = true }) { Text("Settings") }
+                },
+            )
+        },
+    ) { padding ->
         val current = node
         Column(Modifier.fillMaxSize().padding(padding)) {
             when {
                 current == null -> CircularProgressIndicator(Modifier.padding(24.dp))
+                settings -> SettingsScreen(current, revision)
                 open == null -> {
                     val folders = remember(current, revision) { current.folders() }
                     if (folders.isEmpty()) {

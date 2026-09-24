@@ -1,6 +1,9 @@
 package org.tidefell.android
 
+import android.Manifest
+import android.content.ContentValues
 import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -12,6 +15,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.tidefell.android.backup.CameraRollBackup
 import org.tidefell.android.ui.join
 import org.tidefell.ffi.Pairing
 import org.tidefell.ffi.PairingUpdate
@@ -19,7 +23,8 @@ import org.tidefell.ffi.PairingUpdate
 /**
  * The Phase 4 exit criterion, on an emulator against a real `tidefelld` on the host (see
  * scripts/ci-exit-criterion.sh): pair, join a folder, list it, open a file on demand through
- * the documents provider, and save a file that syncs back to the daemon.
+ * the documents provider, and save a file that syncs back to the daemon. Then the Phase 5 checks:
+ * a photo in the camera roll is backed up into the folder once, and retention can be changed.
  *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`. The relay URL
  * comes from the `tidefellRelay` instrumentation argument.
@@ -45,6 +50,7 @@ class ExitCriterionTest {
         Peer.foldersDir.deleteRecursively()
         Peer.settings.relay = relay
         Peer.settings.addressLookup = false
+        CameraRollBackup.Ledger.of(context).clear()
 
         // Pair: the host approves the code it finds in logcat.
         val pairing = Pairing.start(Peer.dataDir, Peer.settings.network(), "Emulator")
@@ -82,6 +88,29 @@ class ExitCriterionTest {
         }
         eventually("the daemon is connected") { node.peers().isNotEmpty() }
         Log.i(TAG, "SAVED from-android.txt")
+
+        // Camera-roll backup: a new photo is copied into Camera/<year>/<month>/, once.
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        automation.grantRuntimePermission(context.packageName, Manifest.permission.READ_MEDIA_IMAGES)
+        automation.grantRuntimePermission(context.packageName, Manifest.permission.READ_MEDIA_VIDEO)
+        val photo = resolver.insert(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "tidefell-test.jpg")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Tidefell")
+            },
+        )!!
+        resolver.openOutputStream(photo)!!.use { it.write("photo ${System.nanoTime()}".toByteArray()) }
+        val written = CameraRollBackup.run(context, node, offer.id, includeVideos = true)
+        assertTrue("backed up $written", written >= 1)
+        val backedUp = node.files(offer.id).map { it.path }
+        assertTrue("$backedUp", backedUp.any { Regex("""Camera/\d{4}/\d{2}/tidefell-test\.jpg""").matches(it) })
+        assertEquals("a second run finds nothing new", 0, CameraRollBackup.run(context, node, offer.id, includeVideos = true))
+        Log.i(TAG, "BACKED UP tidefell-test.jpg")
+
+        // Retention is per device.
+        assertEquals(7u, node.setRetention(offer.id, 7u).retentionDays)
         // Give the daemon time to fetch it before the test process ends.
         delay(10_000)
     }
