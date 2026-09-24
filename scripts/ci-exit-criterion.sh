@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the Phase 4 exit criterion (ExitCriterionTest) on a running emulator against the pinned
+# Runs the Phase 4 and 5 exit criteria (ExitCriterionTest) on a running emulator against the pinned
 # release's tidefelld on this host.
 #
 # Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
@@ -73,13 +73,18 @@ pids+=($!)
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url"
 
-# The file saved on the emulator reached the daemon.
+# The file saved on the emulator, and the backed-up photo, reached the daemon.
+saved=false
+backed_up=false
 for _ in $(seq 1 60); do
-  [ "$(cat "$work/Photos/from-android.txt" 2>/dev/null)" = "hello from android" ] && {
-    echo "exit criterion met: from-android.txt synced to the daemon"
+  [ "$(cat "$work/Photos/from-android.txt" 2>/dev/null)" = "hello from android" ] && saved=true
+  compgen -G "$work/Photos/Camera/*/*/tidefell-test.jpg" > /dev/null && backed_up=true
+  if $saved && $backed_up; then
+    echo "exit criterion met: from-android.txt and the camera backup synced to the daemon"
     exit 0
-  }
+  fi
   sleep 1
 done
-echo "from-android.txt did not reach the daemon" >&2
+$saved || echo "from-android.txt did not reach the daemon" >&2
+$backed_up || echo "Camera/<year>/<month>/tidefell-test.jpg did not reach the daemon" >&2
 exit 1

@@ -40,13 +40,22 @@ Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 29).
 - **Files app.** Each folder is a root in the system file picker. Opening a file fetches it from
   your other devices; saving one syncs it to them (ADR 0016).
 - **Background sync.** A foreground service keeps the peer running.
+- **Camera-roll backup.** Off until you turn it on in Settings. New photos and, optionally,
+  videos, from all albums or the ones you pick, are copied into a folder you choose, under
+  `Camera/<year>/<month>/`, by default only on unmetered networks while charging (ADR 0020).
+  Backup only uploads: nothing on the phone is changed or deleted, and deleting a copy from the
+  folder leaves the phone's photo alone.
+- **Recycle bin.** Settings shows each folder's recycle bin on this phone, how long this phone
+  keeps deleted files, and a button to empty it. Other devices keep their own copies.
 
 ## Tests
 
-`scripts/ci-exit-criterion.sh` runs the Phase 4 exit criterion on an emulator: the app pairs with
-the pinned release's `tidefelld` on the host through a local iroh relay, joins its folder, opens a
-file on demand through the documents provider and saves one that syncs back. CI runs it on every
-push.
+`./gradlew :app:testDebugUnitTest` runs the unit tests.
+
+`scripts/ci-exit-criterion.sh` runs the exit criteria on an emulator: the app pairs with the
+pinned release's `tidefelld` on the host through a local iroh relay, joins its folder, opens a
+file on demand through the documents provider and saves one that syncs back, then backs up a
+photo from the camera roll, which must reach the daemon's folder. CI runs it on every push.
 
 ## Contributing
 

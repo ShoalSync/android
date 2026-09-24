@@ -55,6 +55,9 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.zxing.core)
+    implementation(libs.work.runtime)
+
+    testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)

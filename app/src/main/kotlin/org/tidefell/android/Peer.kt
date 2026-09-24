@@ -88,6 +88,31 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getLong("budget_bytes", 2L shl 30)
         set(value) = prefs.edit().putLong("budget_bytes", value).apply()
 
+    /** Folder ID that the camera roll is backed up into; empty when backup is off (ADR 0020). */
+    var backupFolder: String
+        get() = prefs.getString("backup_folder", "") ?: ""
+        set(value) = prefs.edit().putString("backup_folder", value).apply()
+
+    /** Back up videos as well as photos. */
+    var backupVideos: Boolean
+        get() = prefs.getBoolean("backup_videos", true)
+        set(value) = prefs.edit().putBoolean("backup_videos", value).apply()
+
+    /** Albums (`MediaStore` bucket IDs) to back up; empty for all of them. */
+    var backupAlbums: Set<String>
+        get() = prefs.getStringSet("backup_albums", emptySet())!!.toSet()
+        set(value) = prefs.edit().putStringSet("backup_albums", value).apply()
+
+    /** Back up only on unmetered networks such as Wi-Fi. */
+    var backupUnmeteredOnly: Boolean
+        get() = prefs.getBoolean("backup_unmetered_only", true)
+        set(value) = prefs.edit().putBoolean("backup_unmetered_only", value).apply()
+
+    /** Back up only while charging. */
+    var backupChargingOnly: Boolean
+        get() = prefs.getBoolean("backup_charging_only", true)
+        set(value) = prefs.edit().putBoolean("backup_charging_only", value).apply()
+
     fun network(): Network = Network(
         relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),
         addressLookup = addressLookup,
