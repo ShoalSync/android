@@ -54,6 +54,11 @@ jobs:
     name: Exit criterion on an emulator
     runs-on: self-hosted
     timeout-minutes: 45
+    # The emulator (5554) and the test relay (3340) use fixed ports, so with several runners on
+    # one host only one of these jobs may run at a time. Other jobs still run in parallel.
+    concurrency:
+      group: android-emulator
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - name: Token for the monorepo
