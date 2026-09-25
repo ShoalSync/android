@@ -17,11 +17,13 @@ import org.tidefell.ffi.Node
  *
  * Upload only: nothing on the phone is changed or deleted, and deleting a backed-up file from the
  * folder never touches the phone. With "remove from phone after backup" on, what is written is
- * recorded for [RemoveOriginals], which deletes originals only through the system's request. Each item is recorded by its `MediaStore` ID and content hash,
- * so running again, renaming a photo or re-adding the same one does not upload a duplicate. After
- * a reinstall, when that record is gone, an item is skipped if a file of the same name and size
- * is already in its month's directory. An item edited in place after it was backed up (its size
- * or modification time changed) is backed up again, as a new file beside the first.
+ * recorded for [RemoveOriginals], which deletes originals only through the system's request.
+ * Each item is recorded by its `MediaStore` ID, [Stamp] and content hash, so running again,
+ * renaming a photo or re-adding the same one does not upload a duplicate. After a reinstall, when
+ * that record is gone, an item is skipped if a file of the same name and size is already in its
+ * month's directory. An item whose stamp has changed since it was backed up is read again: if its
+ * content changed, it was edited in place and is backed up again, as a new file beside the first;
+ * if not, only its stamp is updated.
  *
  * Only one run happens at a time in a process, whatever started it.
  */
@@ -42,22 +44,30 @@ object CameraRollBackup {
     data class Album(val id: String, val name: String)
 
     /**
-     * What has been backed up: content hashes, and `MediaStore` keys with the [Stamp] each item
-     * had. Items recorded before stamps were kept are in the legacy key set and count as backed
-     * up whatever their stamp.
+     * What has been backed up: content hashes, and for each `MediaStore` key the [Stamp] the item
+     * had and the hash of its content, as `<stamp>|<hash>`. Items recorded before stamps were kept
+     * are in the legacy key set and count as backed up whatever their stamp.
      */
     class Ledger(private val prefs: SharedPreferences, private val stamps: SharedPreferences) {
         /** True if the item [key] was backed up as it is now, [stamp]. */
         fun isBackedUp(key: String, stamp: Stamp): Boolean =
             when (val recorded = stamps.getString(key, null)) {
                 null -> key in prefs.getStringSet(ITEMS, emptySet())!!
-                else -> Stamp.decode(recorded) == stamp
+                else -> Stamp.decode(recorded.substringBefore('|')) == stamp
             }
+
+        /** True if the item [key] has been recorded at all, with or without a stamp. */
+        fun isKnown(key: String): Boolean =
+            stamps.contains(key) || key in prefs.getStringSet(ITEMS, emptySet())!!
+
+        /** The hash of the item [key]'s content when it was recorded, if known. */
+        fun hashOf(key: String): String? =
+            stamps.getString(key, null)?.substringAfter('|', "")?.takeIf { it.isNotEmpty() }
 
         fun hasContent(hash: String) = hash in prefs.getStringSet(HASHES, emptySet())!!
 
         fun record(key: String, hash: String, stamp: Stamp) {
-            stamps.edit().putString(key, stamp.encode()).apply()
+            stamps.edit().putString(key, "${stamp.encode()}|$hash").apply()
             if (hash.isNotEmpty()) {
                 prefs.edit()
                     .putStringSet(HASHES, prefs.getStringSet(HASHES, emptySet())!! + hash)
@@ -108,7 +118,7 @@ object CameraRollBackup {
         pending.forEachIndexed { index, item ->
             progress(index, pending.size)
             val zoned = BackupPlan.targetPath(item.name, item.takenMs, zone, emptySet())
-            if (BackupPlan.variants(zoned, taken).any { sizes[it] == item.size }) {
+            if (!ledger.isKnown(item.key) && BackupPlan.variants(zoned, taken).any { sizes[it] == item.size }) {
                 // Backed up before a reinstall cleared the ledger.
                 ledger.record(item.key, "", item.stamp)
                 return@forEachIndexed
@@ -123,6 +133,13 @@ object CameraRollBackup {
             }
             if (ledger.hasContent(hash)) {
                 copy.delete()
+                // Only its stamp changed, or its content is another item's: what a candidate
+                // records for it stays true only in the first case.
+                if (hash == ledger.hashOf(item.key)) {
+                    candidates?.restamp(item.key, item.stamp)
+                } else {
+                    candidates?.remove(listOf(item.key))
+                }
             } else {
                 val path = BackupPlan.targetPath(item.name, item.takenMs, zone, taken)
                 try {

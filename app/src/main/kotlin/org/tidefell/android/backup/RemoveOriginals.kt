@@ -45,6 +45,12 @@ object RemoveOriginals {
         fun all(): Map<String, Candidate?> =
             prefs.all.mapNotNull { (key, value) -> (value as? String)?.let { key to Candidate.decode(it) } }.toMap()
         fun record(key: String, candidate: Candidate) = prefs.edit().putString(key, candidate.encode()).apply()
+
+        /** The candidate [key], if there is one, now has [stamp]: its content is unchanged. */
+        fun restamp(key: String, stamp: Stamp) {
+            val candidate = prefs.getString(key, null)?.let(Candidate::decode) ?: return
+            record(key, candidate.copy(stamp = stamp))
+        }
         fun remove(keys: Collection<String>) = prefs.edit().apply { keys.forEach { remove(it) } }.apply()
         fun clear() = prefs.edit().clear().apply()
 
@@ -78,10 +84,11 @@ object RemoveOriginals {
     }
 
     /**
-     * Candidates in [folder] that a full replica has confirmed and that are still on the phone,
-     * unedited. Candidates whose original is gone, deleted by any means, or was edited since it
-     * was backed up are forgotten; backup uploads an edited item again, which makes it a new
-     * candidate.
+     * Candidates in [folder] that a full replica has confirmed and that are still on the phone
+     * as they were backed up. Candidates whose original is gone, deleted by any means, are
+     * forgotten. One whose stamp has changed is not offered: the next backup run reads it again
+     * and either restamps it, if its content is unchanged, or backs up the edited item, which
+     * replaces the candidate.
      */
     fun eligible(context: Context, node: Node, folder: String): List<Eligible> {
         val store = Candidates.of(context)
@@ -94,12 +101,14 @@ object RemoveOriginals {
         val dropped = unverifiable.toMutableList()
         val eligible = eligibleKeys(candidates, confirmed).mapNotNull { key ->
             val candidate = candidates.getValue(key)
-            val uri = uriOf(key)
-            if (uri == null || !unchanged(candidate.stamp, stampOf(context, uri))) {
-                dropped += key
-                null
-            } else {
-                Eligible(key, uri, candidate.path)
+            val current = uriOf(key)?.let { uri -> stampOf(context, uri)?.let { uri to it } }
+            when {
+                current == null -> {
+                    dropped += key
+                    null
+                }
+                !unchanged(candidate.stamp, current.second) -> null
+                else -> Eligible(key, current.first, candidate.path)
             }
         }
         store.remove(dropped)
