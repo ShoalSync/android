@@ -1,8 +1,10 @@
 package org.tidefell.android.ui
 
+import android.app.Activity
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import org.tidefell.android.Peer
 import org.tidefell.android.backup.Backups
 import org.tidefell.android.backup.CameraRollBackup
+import org.tidefell.android.backup.RemoveOriginals
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Node
 
@@ -46,7 +49,7 @@ fun SettingsScreen(node: Node, revision: Int, modifier: Modifier = Modifier) {
     var changes by remember { mutableIntStateOf(0) }
     val folders = remember(node, revision, changes) { runCatching { node.folders() }.getOrDefault(emptyList()) }
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BackupSettings(folders)
+        BackupSettings(node, folders, revision)
         folders.forEach { folder ->
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             FolderSettings(node, folder, onChanged = { changes++ })
@@ -55,7 +58,7 @@ fun SettingsScreen(node: Node, revision: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun BackupSettings(folders: List<Folder>) {
+private fun BackupSettings(node: Node, folders: List<Folder>, revision: Int) {
     val context = LocalContext.current
     val settings = Peer.settings
     var folder by remember { mutableStateOf(settings.backupFolder) }
@@ -81,7 +84,8 @@ private fun BackupSettings(folders: List<Folder>) {
     Text("Camera backup", style = MaterialTheme.typography.titleMedium)
     Text(
         "Copies new photos and videos into a folder, under Camera/<year>/<month>. Nothing on the " +
-            "phone is changed or deleted, and deleting a copy from the folder leaves the phone's photo alone.",
+            "phone is changed or deleted unless you turn on removing photos below, and deleting a copy " +
+            "from the folder leaves the phone's photo alone.",
         style = MaterialTheme.typography.bodySmall,
     )
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -123,6 +127,89 @@ private fun BackupSettings(folders: List<Folder>) {
     CheckRow("Only on Wi-Fi or other unmetered networks", unmetered) { unmetered = it; apply() }
     CheckRow("Only while charging", charging) { charging = it; apply() }
     OutlinedButton(onClick = { Backups.now(context) }) { Text("Back up now") }
+    RemoveOriginalsSettings(node, folder, revision)
+}
+
+/** "Remove from phone after backup" (ADR 0020, 0022): off by default, asks before turning on. */
+@Composable
+private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
+    val context = LocalContext.current
+    val settings = Peer.settings
+    var on by remember { mutableStateOf(settings.removeOriginals) }
+    var confirmOn by remember { mutableStateOf(false) }
+    var removed by remember { mutableIntStateOf(0) }
+    var removing by remember { mutableStateOf<List<RemoveOriginals.Eligible>>(emptyList()) }
+    val eligible = remember(node, folder, on, revision, removed) {
+        if (on) runCatching { RemoveOriginals.eligible(context, node, folder) }.getOrDefault(emptyList()) else emptyList()
+    }
+    val deleteRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) RemoveOriginals.removed(context, removing)
+        removing = emptyList()
+        removed++
+    }
+
+    Text("Remove from phone after backup", style = MaterialTheme.typography.labelLarge)
+    if (!RemoveOriginals.supported) {
+        Text("Needs Android 11 or later.", style = MaterialTheme.typography.bodySmall)
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Offer to delete photos and videos from the phone once an always-on device that keeps " +
+                "everything, such as a NAS or server, holds their copies.",
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Switch(
+            checked = on,
+            onCheckedChange = { turnOn ->
+                if (turnOn) {
+                    confirmOn = true
+                } else {
+                    on = false
+                    settings.removeOriginals = false
+                    RemoveOriginals.turnedOff(context)
+                }
+            },
+        )
+    }
+    if (on) {
+        if (eligible.isEmpty()) {
+            Text(
+                "Nothing to remove yet. Photos backed up from now on can be removed once an always-on device holds them.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            Text("${eligible.size} photos and videos are safe on an always-on device.", style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = {
+                removing = eligible
+                deleteRequest.launch(IntentSenderRequest.Builder(RemoveOriginals.deleteRequest(context, eligible)).build())
+            }) { Text("Remove from phone") }
+        }
+    }
+
+    if (confirmOn) {
+        AlertDialog(
+            onDismissRequest = { confirmOn = false },
+            title = { Text("Remove photos from the phone after backup?") },
+            text = {
+                Text(
+                    "Photos and videos backed up from now on can be deleted from this phone once an " +
+                        "always-on device that keeps everything holds them. Android asks you to confirm " +
+                        "each time. Photos already backed up are not affected. If that device later loses " +
+                        "its disk or leaves the folder, the deleted photos are gone from it too.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmOn = false
+                    on = true
+                    settings.removeOriginals = true
+                }) { Text("Turn on") }
+            },
+            dismissButton = { TextButton(onClick = { confirmOn = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 /** All albums, or only the chosen ones. */
@@ -191,6 +278,15 @@ private fun FolderSettings(node: Node, folder: Folder, onChanged: () -> Unit) {
         "${folder.recycledFiles} deleted files in the recycle bin, $size.$next"
     }
     Text(summary, style = MaterialTheme.typography.bodyMedium)
+    if (folder.onlyHere > 0UL) {
+        // ADR 0022: these are never evicted, so the folder can grow past its budget.
+        Text(
+            "${folder.onlyHere} files made on this phone are not on an always-on device yet. They stay on " +
+                "the phone, even past its space limit, until a device that keeps everything, such as a " +
+                "NAS or server, holds them.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
     if (folder.recycledFiles > 0UL) {
         OutlinedButton(onClick = { confirmEmpty = true }) { Text("Empty recycle bin") }
     }

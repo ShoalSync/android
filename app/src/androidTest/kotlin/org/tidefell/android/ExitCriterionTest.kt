@@ -16,6 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.tidefell.android.backup.CameraRollBackup
+import org.tidefell.android.backup.RemoveOriginals
 import org.tidefell.android.ui.join
 import org.tidefell.ffi.Pairing
 import org.tidefell.ffi.PairingUpdate
@@ -25,6 +26,8 @@ import org.tidefell.ffi.PairingUpdate
  * scripts/ci-exit-criterion.sh): pair, join a folder, list it, open a file on demand through
  * the documents provider, and save a file that syncs back to the daemon. Then the Phase 5 checks:
  * a photo in the camera roll is backed up into the folder once, and retention can be changed.
+ * Then Phase 5b: with "remove from phone after backup" on, the photo becomes eligible for removal
+ * only once the daemon, a full replica, confirms it holds the backed-up copy.
  *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`. The relay URL
  * comes from the `tidefellRelay` instrumentation argument.
@@ -51,6 +54,8 @@ class ExitCriterionTest {
         Peer.settings.relay = relay
         Peer.settings.addressLookup = false
         CameraRollBackup.Ledger.of(context).clear()
+        RemoveOriginals.Candidates.of(context).clear()
+        Peer.settings.removeOriginals = true
 
         // Pair: the host approves the code it finds in logcat.
         val pairing = Pairing.start(Peer.dataDir, Peer.settings.network(), "Emulator")
@@ -102,12 +107,29 @@ class ExitCriterionTest {
             },
         )!!
         resolver.openOutputStream(photo)!!.use { it.write("photo ${System.nanoTime()}".toByteArray()) }
-        val written = CameraRollBackup.run(context, node, offer.id, includeVideos = true)
+        val candidates = RemoveOriginals.Candidates.of(context)
+        val written = CameraRollBackup.run(context, node, offer.id, includeVideos = true, candidates = candidates)
         assertTrue("backed up $written", written >= 1)
         val backedUp = node.files(offer.id).map { it.path }
-        assertTrue("$backedUp", backedUp.any { Regex("""Camera/\d{4}/\d{2}/tidefell-test\.jpg""").matches(it) })
+        val photoPath = backedUp.single { Regex("""Camera/\d{4}/\d{2}/tidefell-test\.jpg""").matches(it) }
+        // Just written: no full replica can have confirmed it, so the original stays.
+        assertTrue("only here", node.files(offer.id).single { it.path == photoPath }.onlyHere)
+        assertTrue("not eligible before a confirmation", RemoveOriginals.eligible(context, node, offer.id).none { it.path == photoPath })
         assertEquals("a second run finds nothing new", 0, CameraRollBackup.run(context, node, offer.id, includeVideos = true))
         Log.i(TAG, "BACKED UP tidefell-test.jpg")
+
+        // Removing originals (ADR 0020, 0022): eligible once the daemon, a full replica, confirms it.
+        assertTrue("recorded while the setting is on", photoPath in candidates.all().values)
+        eventually("the daemon confirms the backed-up photo") {
+            RemoveOriginals.eligible(context, node, offer.id).any { it.path == photoPath }
+        }
+        val file = node.files(offer.id).single { it.path == photoPath }
+        assertTrue("confirmed: $file", file.confirmedCopies >= 1u && !file.onlyHere)
+        assertEquals("laptop", node.copies(offer.id, photoPath).single().name)
+        val eligible = RemoveOriginals.eligible(context, node, offer.id).filter { it.path == photoPath }
+        // Deleting goes through Android's own confirmation; building the request must work.
+        if (RemoveOriginals.supported) RemoveOriginals.deleteRequest(context, eligible)
+        Log.i(TAG, "ELIGIBLE tidefell-test.jpg")
 
         // Retention is per device.
         assertEquals(7u, node.setRetention(offer.id, 7u).retentionDays)
