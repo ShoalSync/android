@@ -18,6 +18,9 @@
     <application
         android:name=".TidefellApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        tools:targetApi="31"
         android:icon="@drawable/ic_tidefell"
         android:label="@string/app_name"
         android:supportsRtl="true"

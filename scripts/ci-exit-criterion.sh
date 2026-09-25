@@ -16,6 +16,8 @@ cleanup() {
   echo "--- relay log ---"; cat "$work/relay.log" 2>/dev/null || true
   echo "--- daemon log ---"; cat "$work/daemon.log" 2>/dev/null || true
   echo "--- approver log ---"; cat "$work/approver.log" 2>/dev/null || true
+  # The test's progress and, on failure, the assertion and its stack trace.
+  echo "--- test log ---"; adb logcat -d -s ExitCriterion:I TestRunner:* AndroidRuntime:E 2>/dev/null || true
 }
 trap cleanup EXIT
 

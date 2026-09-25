@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import java.io.File
 import java.security.MessageDigest
 import java.time.ZoneId
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.tidefell.ffi.Node
 
 /**
@@ -15,33 +17,76 @@ import org.tidefell.ffi.Node
  *
  * Upload only: nothing on the phone is changed or deleted, and deleting a backed-up file from the
  * folder never touches the phone. With "remove from phone after backup" on, what is written is
- * recorded for [RemoveOriginals], which deletes originals only through the system's request. Each item is recorded by its `MediaStore` ID and content hash,
- * so running again, renaming a photo or re-adding the same one does not upload a duplicate. After
- * a reinstall, when that record is gone, an item is skipped if a file of the same name and size
- * is already in its month's directory.
+ * recorded for [RemoveOriginals], which deletes originals only through the system's request.
+ * Each item is recorded by its `MediaStore` ID, [Stamp] and content hash, so running again,
+ * renaming a photo or re-adding the same one does not upload a duplicate. After a reinstall, when
+ * that record is gone, an item is skipped if a file of the same name and size is already in its
+ * month's directory. An item whose stamp has changed since it was backed up is read again: if its
+ * content changed, it was edited in place and is backed up again, as a new file beside the first;
+ * if not, only its stamp is updated.
+ *
+ * Only one run happens at a time in a process, whatever started it.
  */
 object CameraRollBackup {
-    private data class Item(val key: String, val uri: Uri, val name: String, val takenMs: Long, val size: Long, val album: Album)
+    private data class Item(
+        val key: String,
+        val uri: Uri,
+        val name: String,
+        val takenMs: Long,
+        val size: Long,
+        val album: Album,
+        val stamp: Stamp,
+    )
+
+    private val running = Mutex()
 
     /** A camera-roll album: `MediaStore`'s bucket. */
     data class Album(val id: String, val name: String)
 
-    /** What has been backed up: `MediaStore` keys and content hashes. */
-    class Ledger(private val prefs: SharedPreferences) {
-        fun hasItem(key: String) = key in prefs.getStringSet(ITEMS, emptySet())!!
+    /**
+     * What has been backed up: content hashes, and for each `MediaStore` key the [Stamp] the item
+     * had and the hash of its content, as `<stamp>|<hash>`. Items recorded before stamps were kept
+     * are in the legacy key set and count as backed up whatever their stamp.
+     */
+    class Ledger(private val prefs: SharedPreferences, private val stamps: SharedPreferences) {
+        /** True if the item [key] was backed up as it is now, [stamp]. */
+        fun isBackedUp(key: String, stamp: Stamp): Boolean =
+            when (val recorded = stamps.getString(key, null)) {
+                null -> key in prefs.getStringSet(ITEMS, emptySet())!!
+                else -> Stamp.decode(recorded.substringBefore('|')) == stamp
+            }
+
+        /** True if the item [key] has been recorded at all, with or without a stamp. */
+        fun isKnown(key: String): Boolean =
+            stamps.contains(key) || key in prefs.getStringSet(ITEMS, emptySet())!!
+
+        /** The hash of the item [key]'s content when it was recorded, if known. */
+        fun hashOf(key: String): String? =
+            stamps.getString(key, null)?.substringAfter('|', "")?.takeIf { it.isNotEmpty() }
+
         fun hasContent(hash: String) = hash in prefs.getStringSet(HASHES, emptySet())!!
-        fun record(key: String, hash: String) {
-            prefs.edit()
-                .putStringSet(ITEMS, prefs.getStringSet(ITEMS, emptySet())!! + key)
-                .putStringSet(HASHES, prefs.getStringSet(HASHES, emptySet())!! + hash)
-                .apply()
+
+        fun record(key: String, hash: String, stamp: Stamp) {
+            stamps.edit().putString(key, "${stamp.encode()}|$hash").apply()
+            if (hash.isNotEmpty()) {
+                prefs.edit()
+                    .putStringSet(HASHES, prefs.getStringSet(HASHES, emptySet())!! + hash)
+                    .apply()
+            }
         }
-        fun clear() = prefs.edit().clear().apply()
+
+        fun clear() {
+            prefs.edit().clear().apply()
+            stamps.edit().clear().apply()
+        }
 
         companion object {
             private const val ITEMS = "items"
             private const val HASHES = "hashes"
-            fun of(context: Context) = Ledger(context.getSharedPreferences("backup-ledger", Context.MODE_PRIVATE))
+            fun of(context: Context) = Ledger(
+                context.getSharedPreferences("backup-ledger", Context.MODE_PRIVATE),
+                context.getSharedPreferences("backup-stamps", Context.MODE_PRIVATE),
+            )
         }
     }
 
@@ -59,12 +104,12 @@ object CameraRollBackup {
         albums: Set<String> = emptySet(),
         candidates: RemoveOriginals.Candidates? = null,
         progress: (Int, Int) -> Unit = { _, _ -> },
-    ): Int {
+    ): Int = running.withLock {
         val ledger = Ledger.of(context)
         val pending = items(context, includeVideos)
             .filter { albums.isEmpty() || it.album.id in albums }
-            .filterNot { ledger.hasItem(it.key) }
-        if (pending.isEmpty()) return 0
+            .filterNot { ledger.isBackedUp(it.key, it.stamp) }
+        if (pending.isEmpty()) return@withLock 0
         val sizes = node.files(folder).associate { it.path to it.size.toLong() }
         val taken = sizes.keys.toMutableSet()
         val staging = File(context.cacheDir, "backup").apply { mkdirs() }
@@ -73,9 +118,9 @@ object CameraRollBackup {
         pending.forEachIndexed { index, item ->
             progress(index, pending.size)
             val zoned = BackupPlan.targetPath(item.name, item.takenMs, zone, emptySet())
-            if (BackupPlan.variants(zoned, taken).any { sizes[it] == item.size }) {
+            if (!ledger.isKnown(item.key) && BackupPlan.variants(zoned, taken).any { sizes[it] == item.size }) {
                 // Backed up before a reinstall cleared the ledger.
-                ledger.record(item.key, "")
+                ledger.record(item.key, "", item.stamp)
                 return@forEachIndexed
             }
             val copy = File(staging, "item-${item.key.replace(':', '-')}")
@@ -88,6 +133,13 @@ object CameraRollBackup {
             }
             if (ledger.hasContent(hash)) {
                 copy.delete()
+                // Only its stamp changed, or its content is another item's: what a candidate
+                // records for it stays true only in the first case.
+                if (hash == ledger.hashOf(item.key)) {
+                    candidates?.restamp(item.key, item.stamp)
+                } else {
+                    candidates?.remove(listOf(item.key))
+                }
             } else {
                 val path = BackupPlan.targetPath(item.name, item.takenMs, zone, taken)
                 try {
@@ -96,13 +148,13 @@ object CameraRollBackup {
                     copy.delete()
                 }
                 taken += path
-                candidates?.record(item.key, path)
+                candidates?.record(item.key, Candidate(item.stamp, path))
                 written++
             }
-            ledger.record(item.key, hash)
+            ledger.record(item.key, hash, item.stamp)
         }
         progress(pending.size, pending.size)
-        return written
+        written
     }
 
     /** Albums that hold photos or, with [includeVideos], videos, by name. */
@@ -120,6 +172,7 @@ object CameraRollBackup {
             MediaStore.MediaColumns.DATE_TAKEN,
             MediaStore.MediaColumns.DATE_ADDED,
             MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.BUCKET_ID,
             MediaStore.MediaColumns.BUCKET_DISPLAY_NAME,
         )
@@ -133,6 +186,7 @@ object CameraRollBackup {
                 val takenCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_TAKEN)
                 val added = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
                 val size = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                val modified = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                 val bucket = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_ID)
                 val bucketName = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.BUCKET_DISPLAY_NAME)
                 while (cursor.moveToNext()) {
@@ -148,6 +202,7 @@ object CameraRollBackup {
                         album = (cursor.getString(bucket) ?: "").let { album ->
                             Album(album, cursor.getString(bucketName) ?: album)
                         },
+                        stamp = Stamp(cursor.getLong(size), cursor.getLong(modified)),
                     )
                 }
             }

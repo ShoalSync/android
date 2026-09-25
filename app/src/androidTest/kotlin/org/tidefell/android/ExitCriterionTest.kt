@@ -1,7 +1,9 @@
 package org.tidefell.android
 
 import android.Manifest
+import android.content.ContentResolver
 import android.content.ContentValues
+import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Log
@@ -27,13 +29,23 @@ import org.tidefell.ffi.PairingUpdate
  * the documents provider, and save a file that syncs back to the daemon. Then the Phase 5 checks:
  * a photo in the camera roll is backed up into the folder once, and retention can be changed.
  * Then Phase 5b: with "remove from phone after backup" on, the photo becomes eligible for removal
- * only once the daemon, a full replica, confirms it holds the backed-up copy.
+ * only once the daemon, a full replica, confirms it holds the backed-up copy, and stops being
+ * eligible if it is edited afterwards, when it is backed up again.
  *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`. The relay URL
  * comes from the `tidefellRelay` instrumentation argument.
  */
 @RunWith(AndroidJUnit4::class)
 class ExitCriterionTest {
+    /**
+     * Writes [text] as the content of the pending item [photo] and publishes it, as a camera app
+     * does, so `MediaStore` has its size and modification time before anything reads them.
+     */
+    private fun writePhoto(resolver: ContentResolver, photo: Uri, text: String) {
+        resolver.openOutputStream(photo, "wt")!!.use { it.write(text.toByteArray()) }
+        resolver.update(photo, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
+    }
+
     private suspend fun eventually(what: String, check: () -> Boolean) {
         repeat(600) {
             if (runCatching(check).getOrDefault(false)) return
@@ -104,9 +116,10 @@ class ExitCriterionTest {
                 put(MediaStore.Images.Media.DISPLAY_NAME, "tidefell-test.jpg")
                 put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
                 put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Tidefell")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
             },
         )!!
-        resolver.openOutputStream(photo)!!.use { it.write("photo ${System.nanoTime()}".toByteArray()) }
+        writePhoto(resolver, photo, "photo ${System.nanoTime()}")
         val candidates = RemoveOriginals.Candidates.of(context)
         val written = CameraRollBackup.run(context, node, offer.id, includeVideos = true, candidates = candidates)
         assertTrue("backed up $written", written >= 1)
@@ -119,7 +132,7 @@ class ExitCriterionTest {
         Log.i(TAG, "BACKED UP tidefell-test.jpg")
 
         // Removing originals (ADR 0020, 0022): eligible once the daemon, a full replica, confirms it.
-        assertTrue("recorded while the setting is on", photoPath in candidates.all().values)
+        assertTrue("recorded while the setting is on", candidates.all().values.any { it?.path == photoPath })
         eventually("the daemon confirms the backed-up photo") {
             RemoveOriginals.eligible(context, node, offer.id).any { it.path == photoPath }
         }
@@ -130,6 +143,21 @@ class ExitCriterionTest {
         // Deleting goes through Android's own confirmation; building the request must work.
         if (RemoveOriginals.supported) RemoveOriginals.deleteRequest(context, eligible)
         Log.i(TAG, "ELIGIBLE tidefell-test.jpg")
+
+        // An original edited after its backup is not what the folder holds: it is no longer
+        // offered, and the next backup uploads the edited version beside the first.
+        resolver.update(photo, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 1) }, null, null)
+        writePhoto(resolver, photo, "edited photo ${System.nanoTime()}, now longer than before")
+        eventually("the edited photo is no longer offered") {
+            RemoveOriginals.eligible(context, node, offer.id).none { it.path == photoPath }
+        }
+        val again = CameraRollBackup.run(context, node, offer.id, includeVideos = true, candidates = candidates)
+        assertTrue("the edited photo is backed up again: $again", again >= 1)
+        val edited = node.files(offer.id).map { it.path }
+            .single { Regex("""Camera/\d{4}/\d{2}/tidefell-test \(2\)\.jpg""").matches(it) }
+        assertTrue("the edited copy is a new candidate", candidates.all().values.any { it?.path == edited })
+        assertTrue("the first copy is no longer one", candidates.all().values.none { it?.path == photoPath })
+        Log.i(TAG, "REBACKED tidefell-test.jpg")
 
         // Retention is per device.
         assertEquals(7u, node.setRetention(offer.id, 7u).retentionDays)
