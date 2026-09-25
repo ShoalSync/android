@@ -36,10 +36,15 @@ object RemoveOriginals {
     /** Opens the system delete request from the notification. */
     const val ACTION = "org.tidefell.android.action.REMOVE_ORIGINALS"
 
-    /** Items backed up while the setting was on: `MediaStore` key to path in the folder. */
+    /**
+     * Items backed up while the setting was on: `MediaStore` key to the item's [Stamp] when it
+     * was backed up and its path in the folder.
+     */
     class Candidates(private val prefs: SharedPreferences) {
-        fun all(): Map<String, String> = prefs.all.mapNotNull { (key, path) -> (path as? String)?.let { key to it } }.toMap()
-        fun record(key: String, path: String) = prefs.edit().putString(key, path).apply()
+        /** Every stored value, decoded; null for one stored before stamps were kept. */
+        fun all(): Map<String, Candidate?> =
+            prefs.all.mapNotNull { (key, value) -> (value as? String)?.let { key to Candidate.decode(it) } }.toMap()
+        fun record(key: String, candidate: Candidate) = prefs.edit().putString(key, candidate.encode()).apply()
         fun remove(keys: Collection<String>) = prefs.edit().apply { keys.forEach { remove(it) } }.apply()
         fun clear() = prefs.edit().clear().apply()
 
@@ -55,8 +60,15 @@ object RemoveOriginals {
      * The keys in [candidates] whose path is in [confirmed], the folder paths that have a
      * confirmed copy, in the order they were given.
      */
-    fun eligibleKeys(candidates: Map<String, String>, confirmed: Set<String>): List<String> =
-        candidates.filterValues { it in confirmed }.keys.toList()
+    fun eligibleKeys(candidates: Map<String, Candidate>, confirmed: Set<String>): List<String> =
+        candidates.filterValues { it.path in confirmed }.keys.toList()
+
+    /**
+     * Whether an item is still the one that was backed up: it exists ([current] is its stamp
+     * now) and has not been edited since. An edited original is not what the folder holds, so
+     * it must not be offered for removal (ADR 0022).
+     */
+    fun unchanged(recorded: Stamp, current: Stamp?): Boolean = current == recorded
 
     /** A backup key, `image:<id>` or `video:<id>`, split into its kind and `MediaStore` ID. */
     fun parseKey(key: String): Pair<String, Long>? {
@@ -66,25 +78,31 @@ object RemoveOriginals {
     }
 
     /**
-     * Candidates in [folder] that a full replica has confirmed and that are still on the phone.
-     * Candidates whose original is gone, deleted by any means, are forgotten.
+     * Candidates in [folder] that a full replica has confirmed and that are still on the phone,
+     * unedited. Candidates whose original is gone, deleted by any means, or was edited since it
+     * was backed up are forgotten; backup uploads an edited item again, which makes it a new
+     * candidate.
      */
     fun eligible(context: Context, node: Node, folder: String): List<Eligible> {
         val store = Candidates.of(context)
-        val candidates = store.all()
-        if (candidates.isEmpty()) return emptyList()
+        val stored = store.all()
+        if (stored.isEmpty()) return emptyList()
+        // Candidates stored before stamps were kept cannot be checked, so they are never offered.
+        val unverifiable = stored.filterValues { it == null }.keys
+        val candidates = stored.mapNotNull { (key, c) -> c?.let { key to it } }.toMap()
         val confirmed = node.files(folder).filter { it.confirmedCopies > 0u && !it.onlyHere }.map { it.path }.toSet()
-        val gone = mutableListOf<String>()
+        val dropped = unverifiable.toMutableList()
         val eligible = eligibleKeys(candidates, confirmed).mapNotNull { key ->
+            val candidate = candidates.getValue(key)
             val uri = uriOf(key)
-            if (uri == null || !exists(context, uri)) {
-                gone += key
+            if (uri == null || !unchanged(candidate.stamp, stampOf(context, uri))) {
+                dropped += key
                 null
             } else {
-                Eligible(key, uri, candidates.getValue(key))
+                Eligible(key, uri, candidate.path)
             }
         }
-        store.remove(gone)
+        store.remove(dropped)
         return eligible
     }
 
@@ -153,8 +171,18 @@ object RemoveOriginals {
         return ContentUris.withAppendedId(collection, id)
     }
 
-    private fun exists(context: Context, uri: Uri): Boolean =
-        context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns._ID), null, null, null)?.use { it.count > 0 } ?: false
+    /** The item's stamp now, or null if it no longer exists. */
+    private fun stampOf(context: Context, uri: Uri): Stamp? =
+        context.contentResolver.query(
+            uri,
+            arrayOf(MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_MODIFIED),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return@use null
+            Stamp(cursor.getLong(0), cursor.getLong(1))
+        }
 
     private fun notifications(context: Context) = context.getSystemService(NotificationManager::class.java)
 

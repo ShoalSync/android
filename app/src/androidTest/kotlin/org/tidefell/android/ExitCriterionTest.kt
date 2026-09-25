@@ -27,7 +27,8 @@ import org.tidefell.ffi.PairingUpdate
  * the documents provider, and save a file that syncs back to the daemon. Then the Phase 5 checks:
  * a photo in the camera roll is backed up into the folder once, and retention can be changed.
  * Then Phase 5b: with "remove from phone after backup" on, the photo becomes eligible for removal
- * only once the daemon, a full replica, confirms it holds the backed-up copy.
+ * only once the daemon, a full replica, confirms it holds the backed-up copy, and stops being
+ * eligible if it is edited afterwards, when it is backed up again.
  *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`. The relay URL
  * comes from the `tidefellRelay` instrumentation argument.
@@ -119,7 +120,7 @@ class ExitCriterionTest {
         Log.i(TAG, "BACKED UP tidefell-test.jpg")
 
         // Removing originals (ADR 0020, 0022): eligible once the daemon, a full replica, confirms it.
-        assertTrue("recorded while the setting is on", photoPath in candidates.all().values)
+        assertTrue("recorded while the setting is on", candidates.all().values.any { it?.path == photoPath })
         eventually("the daemon confirms the backed-up photo") {
             RemoveOriginals.eligible(context, node, offer.id).any { it.path == photoPath }
         }
@@ -130,6 +131,22 @@ class ExitCriterionTest {
         // Deleting goes through Android's own confirmation; building the request must work.
         if (RemoveOriginals.supported) RemoveOriginals.deleteRequest(context, eligible)
         Log.i(TAG, "ELIGIBLE tidefell-test.jpg")
+
+        // An original edited after its backup is not what the folder holds: it is no longer
+        // offered, and the next backup uploads the edited version beside the first.
+        resolver.openOutputStream(photo, "wt")!!.use {
+            it.write("edited photo ${System.nanoTime()}, now longer than before".toByteArray())
+        }
+        eventually("the edited photo is no longer offered") {
+            RemoveOriginals.eligible(context, node, offer.id).none { it.path == photoPath }
+        }
+        assertTrue("its old candidate is forgotten", candidates.all().values.none { it?.path == photoPath })
+        val again = CameraRollBackup.run(context, node, offer.id, includeVideos = true, candidates = candidates)
+        assertTrue("the edited photo is backed up again: $again", again >= 1)
+        val edited = node.files(offer.id).map { it.path }
+            .single { Regex("""Camera/\d{4}/\d{2}/tidefell-test \(2\)\.jpg""").matches(it) }
+        assertTrue("the edited copy is a new candidate", candidates.all().values.any { it?.path == edited })
+        Log.i(TAG, "REBACKED tidefell-test.jpg")
 
         // Retention is per device.
         assertEquals(7u, node.setRetention(offer.id, 7u).retentionDays)

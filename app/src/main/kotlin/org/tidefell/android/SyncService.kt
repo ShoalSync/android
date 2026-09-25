@@ -29,6 +29,16 @@ class SyncService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Android 15 limits `dataSync` foreground services to six hours a day and calls this when the
+     * limit is reached; a service that does not stop is killed. Stopping keeps the peer's state
+     * consistent. The service starts again the next time the app is opened.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Log.i(TAG, "foreground time limit reached; stopping")
+        stopSelf()
+    }
+
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
