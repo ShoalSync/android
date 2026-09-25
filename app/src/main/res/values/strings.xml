@@ -5,4 +5,10 @@
     <string name="sync_notification">Syncing with your devices</string>
     <string name="backup_channel">Camera backup</string>
     <string name="backup_notification">Backing up photos and videos</string>
+    <string name="remove_channel">Remove backed-up photos</string>
+    <plurals name="remove_notification_title">
+        <item quantity="one">%d photo or video is safe on an always-on device</item>
+        <item quantity="other">%d photos and videos are safe on an always-on device</item>
+    </plurals>
+    <string name="remove_notification_text">Tap to remove them from this phone. Android asks you to confirm.</string>
 </resources>

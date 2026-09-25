@@ -113,6 +113,14 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean("backup_charging_only", true)
         set(value) = prefs.edit().putBoolean("backup_charging_only", value).apply()
 
+    /**
+     * Delete originals from the camera roll once a full replica holds their backed-up copies
+     * (ADR 0020, 0022). Off by default; Android 11 and later.
+     */
+    var removeOriginals: Boolean
+        get() = prefs.getBoolean("remove_originals", false)
+        set(value) = prefs.edit().putBoolean("remove_originals", value).apply()
+
     fun network(): Network = Network(
         relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),
         addressLookup = addressLookup,

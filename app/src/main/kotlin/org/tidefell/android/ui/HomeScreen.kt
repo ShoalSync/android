@@ -97,7 +97,15 @@ private fun FileList(node: org.tidefell.ffi.Node, folder: Folder, revision: Int)
         items(files, key = { it.entry }) { file ->
             ListItem(
                 headlineContent = { Text(file.path) },
-                supportingContent = { Text(if (file.onDisk) "On this phone" else "On your other devices") },
+                supportingContent = {
+                    Text(
+                        when {
+                            file.onlyHere -> "Only on this phone"
+                            file.onDisk -> "On this phone"
+                            else -> "On your other devices"
+                        },
+                    )
+                },
                 modifier = Modifier.clickable {
                     val uri = DocumentsContract.buildDocumentUri(TidefellDocumentsProvider.AUTHORITY, "${folder.id}/${file.path}")
                     val intent = Intent(Intent.ACTION_VIEW)

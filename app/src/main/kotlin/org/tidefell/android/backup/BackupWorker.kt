@@ -36,10 +36,19 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             .onFailure { Log.w(TAG, "running without a foreground notification", it) }
         return try {
             val node = Peer.start()
-            val written = CameraRollBackup.run(applicationContext, node, folder, settings.backupVideos, settings.backupAlbums) { done, total ->
+            val removing = settings.removeOriginals && RemoveOriginals.supported
+            val candidates = if (removing) RemoveOriginals.Candidates.of(applicationContext) else null
+            val written = CameraRollBackup.run(
+                applicationContext, node, folder, settings.backupVideos, settings.backupAlbums, candidates,
+            ) { done, total ->
                 runCatching { setForegroundAsync(foregroundInfo(done, total)) }
             }
             Log.i(TAG, "backed up $written new photos and videos")
+            if (removing) {
+                RemoveOriginals.notifyIfEligible(applicationContext, node, folder)
+                // A full replica confirms new copies within minutes; look again then, not in an hour.
+                if (written > 0) Backups.later(applicationContext)
+            }
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "backup failed", e)
@@ -79,6 +88,7 @@ object Backups {
     private const val PERIODIC = "backup-periodic"
     private const val WATCH = "backup-watch"
     private const val NOW = "backup-now"
+    private const val LATER = "backup-later"
 
     /** The permissions backup needs on this Android version. */
     fun permissions(): Array<String> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -126,6 +136,18 @@ object Backups {
     fun now(context: Context) {
         WorkManager.getInstance(context)
             .enqueueUniqueWork(NOW, ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<BackupWorker>().build())
+    }
+
+    /**
+     * Runs once in a few minutes, so that newly confirmed copies are offered for removal soon.
+     * A run with nothing new to back up only looks at what is eligible.
+     */
+    fun later(context: Context) {
+        val request = OneTimeWorkRequestBuilder<BackupWorker>()
+            .setInitialDelay(5, TimeUnit.MINUTES)
+            .setConstraints(constraints().build())
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(LATER, ExistingWorkPolicy.REPLACE, request)
     }
 
     private fun constraints(): Constraints.Builder {

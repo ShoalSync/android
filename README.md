@@ -45,6 +45,11 @@ Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 29).
   `Camera/<year>/<month>/`, by default only on unmetered networks while charging (ADR 0020).
   Backup only uploads: nothing on the phone is changed or deleted, and deleting a copy from the
   folder leaves the phone's photo alone.
+- **Remove from phone after backup.** Off by default; Android 11 and later. Once on, photos and
+  videos backed up from then on become eligible when a full replica, such as an always-on NAS or
+  server, confirms it holds their copies (ADR 0022). A notification or a button in Settings opens
+  Android's own delete confirmation; the app never deletes a photo any other way. Files and
+  folders say what exists only on this phone.
 - **Recycle bin.** Settings shows each folder's recycle bin on this phone, how long this phone
   keeps deleted files, and a button to empty it. Other devices keep their own copies.
 
@@ -55,7 +60,9 @@ Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 29).
 `scripts/ci-exit-criterion.sh` runs the exit criteria on an emulator: the app pairs with the
 pinned release's `tidefelld` on the host through a local iroh relay, joins its folder, opens a
 file on demand through the documents provider and saves one that syncs back, then backs up a
-photo from the camera roll, which must reach the daemon's folder. CI runs it on every push.
+photo from the camera roll, which must reach the daemon's folder. With removing originals on, the
+photo must become eligible only after the daemon, a full replica, confirms its copy. CI runs it on
+every push.
 
 ## Contributing
 

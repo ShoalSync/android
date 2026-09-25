@@ -14,7 +14,8 @@ import org.tidefell.ffi.Node
  * Copies new photos and videos from the phone's `MediaStore` into a folder (ADR 0020).
  *
  * Upload only: nothing on the phone is changed or deleted, and deleting a backed-up file from the
- * folder never touches the phone. Each item is recorded by its `MediaStore` ID and content hash,
+ * folder never touches the phone. With "remove from phone after backup" on, what is written is
+ * recorded for [RemoveOriginals], which deletes originals only through the system's request. Each item is recorded by its `MediaStore` ID and content hash,
  * so running again, renaming a photo or re-adding the same one does not upload a duplicate. After
  * a reinstall, when that record is gone, an item is skipped if a file of the same name and size
  * is already in its month's directory.
@@ -47,7 +48,8 @@ object CameraRollBackup {
     /**
      * Backs up every photo (and, with [includeVideos], video) not yet recorded, oldest first,
      * into [folder]. With [albums], only items in those albums (bucket IDs); empty means all.
-     * Returns how many were written. [progress] gets (done, total).
+     * Returns how many were written. [progress] gets (done, total). Each item written is recorded
+     * in [candidates] if given.
      */
     suspend fun run(
         context: Context,
@@ -55,6 +57,7 @@ object CameraRollBackup {
         folder: String,
         includeVideos: Boolean,
         albums: Set<String> = emptySet(),
+        candidates: RemoveOriginals.Candidates? = null,
         progress: (Int, Int) -> Unit = { _, _ -> },
     ): Int {
         val ledger = Ledger.of(context)
@@ -93,6 +96,7 @@ object CameraRollBackup {
                     copy.delete()
                 }
                 taken += path
+                candidates?.record(item.key, path)
                 written++
             }
             ledger.record(item.key, hash)
