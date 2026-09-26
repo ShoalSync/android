@@ -20,3 +20,9 @@ object Removable {
     fun afterBackup(files: List<File>, sinceMs: Long, kept: Set<String> = emptySet()): List<File> =
         confirmed(files).filter { it.modifiedMs >= sinceMs && it.entry !in kept }
 }
+
+/** A phone folder's files that are only on other devices (ADR 0028). */
+object OnOtherDevices {
+    /** What the folder's "On your other devices" root lists, and what can be downloaded. */
+    fun files(files: List<File>): List<File> = files.filterNot { it.onDisk }
+}

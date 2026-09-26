@@ -33,6 +33,9 @@ import org.tidefell.ffi.PairingUpdate
  * back. Switched to two-way sync, the daemon's file arrives, and deleting it on the phone leaves
  * it on the daemon.
  *
+ * ADR 0028: the phone folder is a documents root listing only the daemon's files that are not on
+ * the phone. Opening one there downloads it into the phone folder, as does "Download to this phone".
+ *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`, and checks its
  * folders afterwards. The relay URL comes from the `tidefellRelay` instrumentation argument.
  */
@@ -45,6 +48,14 @@ class ExitCriterionTest {
         }
         throw AssertionError("timed out waiting for $what")
     }
+
+    /** Names of the files the documents provider lists at the top of [folder]'s root. */
+    private fun listed(resolver: android.content.ContentResolver, folder: String): List<String> =
+        resolver.query(DocumentsContract.buildChildDocumentsUri(TidefellDocumentsProvider.AUTHORITY, "$folder/"), null, null, null, null)!!
+            .use { cursor ->
+                val name = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                buildList { while (cursor.moveToNext()) add(cursor.getString(name)) }
+            }
 
     @Test
     fun pairJoinOpenSaveAndPhoneFolders() = runBlocking {
@@ -104,10 +115,11 @@ class ExitCriterionTest {
         val camera = PhoneFolders.join(cameraOffer, dir, SyncChoice.REMOVE_AFTER_BACKUP)
         assertEquals(SyncChoice.REMOVE_AFTER_BACKUP, PhoneFolders.choice(camera))
         val roots = resolver.query(DocumentsContract.buildRootsUri(TidefellDocumentsProvider.AUTHORITY), null, null, null, null)!!
-        roots.use { assertEquals("folders on the phone are not document roots", 1, it.count) }
+        roots.use { assertEquals("folders on the phone are document roots too", 2, it.count) }
 
-        // The daemon's file is listed but never downloaded.
+        // The daemon's file is listed but never downloaded; the documents root lists it.
         eventually("the daemon's camera file is listed") { node.files(camera.id).any { it.path == "desktop.txt" } }
+        assertEquals(listOf("desktop.txt"), listed(resolver, camera.id))
 
         // A photo taken now reaches the daemon, which confirms it; then it leaves the phone.
         val photo = File(dir, "IMG_0001.jpg")
@@ -139,6 +151,21 @@ class ExitCriterionTest {
         node.scan(camera.id)
         assertTrue("still listed", node.files(camera.id).any { it.path == "desktop.txt" && !it.onDisk })
         Log.i(TAG, "DELETED desktop.txt on the phone")
+
+        // ADR 0028: back in the documents root, which lists only files off the phone. Opening it
+        // there downloads it into the phone folder.
+        assertEquals(listOf("desktop.txt"), listed(resolver, camera.id))
+        val desktopUri = DocumentsContract.buildDocumentUri(TidefellDocumentsProvider.AUTHORITY, "${camera.id}/desktop.txt")
+        assertEquals("made on the laptop", resolver.openInputStream(desktopUri)!!.use { it.readBytes().decodeToString() })
+        assertTrue("downloaded into the phone folder", desktop.exists())
+        assertEquals(emptyList<String>(), listed(resolver, camera.id))
+
+        // "Download to this phone" does the same.
+        assertTrue(desktop.delete())
+        node.scan(camera.id)
+        PhoneFolders.download(camera.id, "desktop.txt")
+        assertEquals("made on the laptop", desktop.readText())
+        assertTrue(node.files(camera.id).single { it.path == "desktop.txt" }.onDisk)
 
         // Give the daemon time to fetch everything before the test process ends.
         delay(10_000)

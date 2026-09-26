@@ -101,6 +101,27 @@ object PhoneFolders {
         Peer.start().restore(folder, item.entry)
     }
 
+    /**
+     * Downloads [path] of phone folder [folder] from other devices into the folder (ADR 0028). It
+     * stays on the phone: remove after backup does not take it again.
+     */
+    suspend fun download(folder: String, path: String) {
+        val node = Peer.start()
+        withContext(Dispatchers.IO) {
+            keepDownloaded(node, folder, path)
+            node.open(folder, path)
+            node.close(folder, path)
+        }
+    }
+
+    /**
+     * Keeps [path] of [folder] on the phone once downloaded, as for a restored file. Call before
+     * downloading, so remove after backup cannot take it in between.
+     */
+    fun keepDownloaded(node: Node, folder: String, path: String) {
+        node.files(folder).firstOrNull { it.path == path }?.let { Peer.settings.keep(folder, it.entry) }
+    }
+
     /** Moves [paths] of [folder] to this phone's recycle bin; for clean up. */
     suspend fun removeHere(folder: String, paths: List<String>): Int {
         val node = Peer.start()

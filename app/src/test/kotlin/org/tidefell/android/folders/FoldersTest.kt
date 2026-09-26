@@ -56,6 +56,12 @@ class FoldersTest {
     }
 
     @Test
+    fun only_files_off_the_phone_are_listed_as_on_other_devices() {
+        val files = listOf(file("here.jpg"), file("there.jpg", onDisk = false), file("mine.jpg", onlyHere = true))
+        assertEquals(listOf("there.jpg"), OnOtherDevices.files(files).map { it.path })
+    }
+
+    @Test
     fun clean_up_offers_only_confirmed_files_on_the_phone() {
         val files = listOf(
             file("safe.jpg"),

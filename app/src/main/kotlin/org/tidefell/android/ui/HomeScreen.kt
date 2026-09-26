@@ -179,7 +179,10 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
     acting?.let { file -> FileActions(model, folder, file) { acting = null } }
 }
 
-/** What can be done to one file: remove it from this phone, or delete it everywhere. */
+/**
+ * What can be done to one file: remove it from this phone or download it to the phone, and
+ * delete it everywhere.
+ */
 @Composable
 private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDismiss: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
@@ -211,6 +214,17 @@ private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDism
                     if (file.onlyHere) {
                         Text(
                             "No device that keeps everything holds it yet; it stays in this phone's recycle bin.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                } else if (!PhoneFolders.inAppStorage(folder)) {
+                    TextButton(onClick = {
+                        model.download(folder.id, file.path)
+                        onDismiss()
+                    }) { Text("Download to this phone") }
+                    if (PhoneFolders.choice(folder) != SyncChoice.TWO_WAY) {
+                        Text(
+                            "This folder only backs up, so later changes from your other devices will not replace this copy.",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

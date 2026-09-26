@@ -101,6 +101,11 @@ class HomeViewModel : ViewModel() {
         "Moved $path to this phone's recycle bin. Your other devices keep it."
     }
 
+    fun download(folder: String, path: String) = act {
+        PhoneFolders.download(folder, path)
+        "Downloaded $path to this phone."
+    }
+
     fun deleteEverywhere(folder: String, path: String) = act {
         Peer.start().delete(folder, path)
         "Deleted $path from all your devices. Each keeps it in its recycle bin."

@@ -44,7 +44,7 @@ access).
   need All files access, asked for the first time one is added.
 - **Sync options.** Each folder on the phone has its own, in this order:
   - *Backup only* (the default): files on the phone are sent to your other devices; nothing is
-    downloaded and nothing on the phone is changed.
+    downloaded unless you ask, and nothing on the phone is changed.
   - *Two-way sync*: changes go both ways. A file deleted on the phone is removed from the phone
     only; it stays on your other devices and is not downloaded again until you open it.
   - *Remove after backup*: like backup only, and files added from then on move to the phone's
@@ -54,9 +54,14 @@ access).
   from all devices" is a separate action on each file. "Clean up" moves the files a full replica
   holds to the phone's recycle bin. Nothing the app removes is deleted until the recycle bin's
   retention runs out or you empty it, and restoring puts it back.
+- **Files on your other devices.** A file of a folder on the phone that is only on your other
+  devices has "Download to this phone", which puts it in the folder (ADR 0028). With two-way sync
+  it then stays in sync; otherwise later changes from other devices do not replace it.
 - **Files app.** Each folder inside the app is a root in the system file picker. Opening a file
-  fetches it from your other devices; saving one syncs it to them (ADR 0016). Files written into
-  folders on the phone are announced to the media store, so galleries show them.
+  fetches it from your other devices; saving one syncs it to them (ADR 0016). Each folder on the
+  phone is a read-only root too, labelled "On your other devices", listing only the files that
+  are not on the phone; opening one downloads it into the folder. Files written into folders on
+  the phone are announced to the media store, so galleries show them.
 - **Background sync.** A foreground service keeps the peer running while the app is in use. Folders
   on the phone also sync soon after a new photo or video and every hour, by default only on
   unmetered networks.
@@ -74,8 +79,9 @@ with files on demand, opens a file through the documents provider and saves one 
 It then joins a second folder at a folder on the phone with remove after backup: a photo taken
 there must reach the daemon, and move to the phone's recycle bin only after the daemon, a full
 replica, confirms it, while nothing from the daemon is downloaded. Switched to two-way sync, the
-daemon's files arrive, and a file deleted on the phone stays on the daemon. CI runs it on every
-push.
+daemon's files arrive, and a file deleted on the phone stays on the daemon. The phone folder's
+documents root lists that file, and opening it there, or "Download to this phone", brings it back.
+CI runs it on every push.
 
 ## Contributing
 
