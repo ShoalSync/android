@@ -9,7 +9,8 @@ file sync with no central server.
   thin client.
 - **Placeholders via `DocumentsProvider`.** Files appear in the system file picker and other apps
   without being stored locally; contents are fetched from peers on demand.
-- **Camera-roll backup** to your other devices.
+- **Any folder on the phone**, the camera folder included: backed up, synced both ways, or backed
+  up and then removed from the phone.
 
 ## Building
 
@@ -28,41 +29,53 @@ build against a monorepo checkout instead of the pinned AAR (needs the NDK and `
 ./gradlew :app:assembleDebug -PtidefellFfiLocalPath=../tidefell -Ptidefell.abis=x86_64
 ```
 
-Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 29).
+Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 30, Android 11, for All files
+access).
 
 ## How it works
 
 - **Pairing.** A new phone shows a pairing code as a QR code. A device holding your user key
   approves it with `tidefell pair <code>` after both show the same six-digit confirmation code
   (ADR 0015).
-- **Folders.** After pairing, the phone lists the folders you can join and joins them as partial
-  replicas within the storage budget.
-- **Files app.** Each folder is a root in the system file picker. Opening a file fetches it from
-  your other devices; saving one syncs it to them (ADR 0016).
-- **Background sync.** A foreground service keeps the peer running.
-- **Camera-roll backup.** Off until you turn it on in Settings. New photos and, optionally,
-  videos, from all albums or the ones you pick, are copied into a folder you choose, under
-  `Camera/<year>/<month>/`, by default only on unmetered networks while charging (ADR 0020).
-  Backup only uploads: nothing on the phone is changed or deleted, and deleting a copy from the
-  folder leaves the phone's photo alone.
-- **Remove from phone after backup.** Off by default; Android 11 and later. Once on, photos and
-  videos backed up from then on become eligible when a full replica, such as an always-on NAS or
-  server, confirms it holds their copies (ADR 0022). A notification or a button in Settings opens
-  Android's own delete confirmation; the app never deletes a photo any other way. Files and
-  folders say what exists only on this phone.
-- **Recycle bin.** Settings shows each folder's recycle bin on this phone, how long this phone
-  keeps deleted files, and a button to empty it. Other devices keep their own copies.
+- **Folders (ADR 0025).** A folder lives either in a folder on the phone, such as the camera
+  folder, Documents or Download, or inside the app with files on demand. After pairing, the phone
+  lists the folders you can join and asks where each should live; "Add folder" creates a new one
+  from a folder on the phone. The folder picker lists the camera folder first. Folders on the phone
+  need All files access, asked for the first time one is added.
+- **Sync options.** Each folder on the phone has its own, in this order:
+  - *Backup only* (the default): files on the phone are sent to your other devices; nothing is
+    downloaded and nothing on the phone is changed.
+  - *Two-way sync*: changes go both ways. A file deleted on the phone is removed from the phone
+    only; it stays on your other devices and is not downloaded again until you open it.
+  - *Remove after backup*: like backup only, and files added from then on move to the phone's
+    recycle bin once a full replica, such as an always-on NAS or server, confirms it holds them
+    (ADR 0022). Choosing it asks once.
+- **Deleting and cleaning up.** Deleting a file on the phone never deletes it elsewhere; "Delete
+  from all devices" is a separate action on each file. "Clean up" moves the files a full replica
+  holds to the phone's recycle bin. Nothing the app removes is deleted until the recycle bin's
+  retention runs out or you empty it, and restoring puts it back.
+- **Files app.** Each folder inside the app is a root in the system file picker. Opening a file
+  fetches it from your other devices; saving one syncs it to them (ADR 0016). Files written into
+  folders on the phone are announced to the media store, so galleries show them.
+- **Background sync.** A foreground service keeps the peer running while the app is in use. Folders
+  on the phone also sync soon after a new photo or video and every hour, by default only on
+  unmetered networks.
+- **Recycle bin.** Each folder's recycle bin on this phone lists what was deleted everywhere and
+  what was removed from this phone only, to restore or delete for good. Settings sets how long
+  this phone keeps them. Other devices keep their own copies.
 
 ## Tests
 
 `./gradlew :app:testDebugUnitTest` runs the unit tests.
 
 `scripts/ci-exit-criterion.sh` runs the exit criteria on an emulator: the app pairs with the
-pinned release's `tidefelld` on the host through a local iroh relay, joins its folder, opens a
-file on demand through the documents provider and saves one that syncs back, then backs up a
-photo from the camera roll, which must reach the daemon's folder. With removing originals on, the
-photo must become eligible only after the daemon, a full replica, confirms its copy. CI runs it on
-every push.
+pinned release's `tidefelld` on the host through a local iroh relay, joins one of its folders
+with files on demand, opens a file through the documents provider and saves one that syncs back.
+It then joins a second folder at a folder on the phone with remove after backup: a photo taken
+there must reach the daemon, and move to the phone's recycle bin only after the daemon, a full
+replica, confirms it, while nothing from the daemon is downloaded. Switched to two-way sync, the
+daemon's files arrive, and a file deleted on the phone stays on the daemon. CI runs it on every
+push.
 
 ## Contributing
 

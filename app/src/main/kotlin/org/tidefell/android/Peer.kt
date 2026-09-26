@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.tidefell.android.folders.Housekeeping
 import org.tidefell.ffi.EventListener
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Network
@@ -35,6 +36,9 @@ object Peer {
         app = context.applicationContext
     }
 
+    /** The application context. */
+    val context: Context get() = app
+
     /** Keys, certificate and engine state. */
     val dataDir: String get() = File(app.filesDir, "tidefell").path
 
@@ -54,6 +58,7 @@ object Peer {
                 }
             })
             running.value = node
+            Housekeeping.start(app, node, events)
         }
     }
 
@@ -61,6 +66,7 @@ object Peer {
     fun startBlocking(): Node? = if (paired) runBlocking { start() } else null
 
     suspend fun stop() = lock.withLock {
+        Housekeeping.stop()
         running.value?.let { node ->
             running.value = null
             node.shutdown()
@@ -88,38 +94,38 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getLong("budget_bytes", 2L shl 30)
         set(value) = prefs.edit().putLong("budget_bytes", value).apply()
 
-    /** Folder ID that the camera roll is backed up into; empty when backup is off (ADR 0020). */
-    var backupFolder: String
-        get() = prefs.getString("backup_folder", "") ?: ""
-        set(value) = prefs.edit().putString("backup_folder", value).apply()
+    /** Sync phone folders in the background only on unmetered networks such as Wi-Fi. */
+    var syncUnmeteredOnly: Boolean
+        get() = prefs.getBoolean("sync_unmetered_only", true)
+        set(value) = prefs.edit().putBoolean("sync_unmetered_only", value).apply()
 
-    /** Back up videos as well as photos. */
-    var backupVideos: Boolean
-        get() = prefs.getBoolean("backup_videos", true)
-        set(value) = prefs.edit().putBoolean("backup_videos", value).apply()
-
-    /** Albums (`MediaStore` bucket IDs) to back up; empty for all of them. */
-    var backupAlbums: Set<String>
-        get() = prefs.getStringSet("backup_albums", emptySet())!!.toSet()
-        set(value) = prefs.edit().putStringSet("backup_albums", value).apply()
-
-    /** Back up only on unmetered networks such as Wi-Fi. */
-    var backupUnmeteredOnly: Boolean
-        get() = prefs.getBoolean("backup_unmetered_only", true)
-        set(value) = prefs.edit().putBoolean("backup_unmetered_only", value).apply()
-
-    /** Back up only while charging. */
-    var backupChargingOnly: Boolean
-        get() = prefs.getBoolean("backup_charging_only", true)
-        set(value) = prefs.edit().putBoolean("backup_charging_only", value).apply()
+    /** Sync phone folders in the background only while charging. */
+    var syncChargingOnly: Boolean
+        get() = prefs.getBoolean("sync_charging_only", false)
+        set(value) = prefs.edit().putBoolean("sync_charging_only", value).apply()
 
     /**
-     * Delete originals from the camera roll once a full replica holds their backed-up copies
-     * (ADR 0020, 0022). Off by default; Android 11 and later.
+     * When remove after backup was chosen for [folder], in milliseconds since the Unix epoch, or
+     * null if it is not on. Only files added or changed since are removed (ADR 0025).
      */
-    var removeOriginals: Boolean
-        get() = prefs.getBoolean("remove_originals", false)
-        set(value) = prefs.edit().putBoolean("remove_originals", value).apply()
+    fun removingSince(folder: String): Long? =
+        prefs.getLong("remove_after_backup.$folder", -1).takeIf { it >= 0 }
+
+    /**
+     * Entries of [folder] the user restored from the recycle bin: remove after backup leaves
+     * them on the phone from then on.
+     */
+    fun kept(folder: String): Set<String> = prefs.getStringSet("kept.$folder", emptySet())!!.toSet()
+
+    fun keep(folder: String, entry: String) {
+        prefs.edit().putStringSet("kept.$folder", kept(folder) + entry).apply()
+    }
+
+    fun setRemovingSince(folder: String, sinceMs: Long?) {
+        prefs.edit().apply {
+            if (sinceMs == null) remove("remove_after_backup.$folder") else putLong("remove_after_backup.$folder", sinceMs)
+        }.apply()
+    }
 
     fun network(): Network = Network(
         relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),
