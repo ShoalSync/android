@@ -27,57 +27,45 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.Peer
 import org.tidefell.android.backup.Backups
 import org.tidefell.android.backup.CameraRollBackup
 import org.tidefell.android.backup.RemoveOriginals
 import org.tidefell.ffi.Folder
-import org.tidefell.ffi.Node
 
 /** Camera-roll backup, and each folder's recycle bin on this phone. */
 @Composable
-fun SettingsScreen(node: Node, revision: Int, modifier: Modifier = Modifier) {
-    var changes by remember { mutableIntStateOf(0) }
-    val folders = remember(node, revision, changes) { runCatching { node.folders() }.getOrDefault(emptyList()) }
+fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = viewModel()) {
+    val folders by model.folders.collectAsStateWithLifecycle()
+    val errors by model.errors.collectAsStateWithLifecycle()
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BackupSettings(node, folders, revision)
+        BackupSettings(model, folders)
         folders.forEach { folder ->
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            FolderSettings(node, folder, onChanged = { changes++ })
+            FolderSettings(model, folder, errors[folder.id])
         }
     }
 }
 
 @Composable
-private fun BackupSettings(node: Node, folders: List<Folder>, revision: Int) {
+private fun BackupSettings(model: SettingsViewModel, folders: List<Folder>) {
     val context = LocalContext.current
-    val settings = Peer.settings
-    var folder by remember { mutableStateOf(settings.backupFolder) }
-    var videos by remember { mutableStateOf(settings.backupVideos) }
-    var unmetered by remember { mutableStateOf(settings.backupUnmeteredOnly) }
-    var charging by remember { mutableStateOf(settings.backupChargingOnly) }
-    var albums by remember { mutableStateOf(settings.backupAlbums) }
-    fun apply() {
-        settings.backupFolder = folder
-        settings.backupVideos = videos
-        settings.backupAlbums = albums
-        settings.backupUnmeteredOnly = unmetered
-        settings.backupChargingOnly = charging
-        Backups.schedule(context)
-    }
+    val backup by model.backup.collectAsStateWithLifecycle()
+    val folder = backup.folder
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         if (Backups.hasPermission(context)) {
-            folder = folders.firstOrNull()?.id.orEmpty()
-            apply()
+            model.updateBackup { it.copy(folder = folders.firstOrNull()?.id.orEmpty()) }
         }
     }
 
@@ -95,11 +83,9 @@ private fun BackupSettings(node: Node, folders: List<Folder>, revision: Int) {
             enabled = folders.isNotEmpty(),
             onCheckedChange = { on ->
                 if (!on) {
-                    folder = ""
-                    apply()
+                    model.updateBackup { it.copy(folder = "") }
                 } else if (Backups.hasPermission(context)) {
-                    folder = folders.first().id
-                    apply()
+                    model.updateBackup { it.copy(folder = folders.first().id) }
                 } else {
                     askPermission.launch(Backups.permissions())
                 }
@@ -113,8 +99,7 @@ private fun BackupSettings(node: Node, folders: List<Folder>, revision: Int) {
     folders.forEach { candidate ->
         Row(
             Modifier.fillMaxWidth().selectable(selected = candidate.id == folder, onClick = {
-                folder = candidate.id
-                apply()
+                model.updateBackup { it.copy(folder = candidate.id) }
             }),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -122,30 +107,24 @@ private fun BackupSettings(node: Node, folders: List<Folder>, revision: Int) {
             Text(Peer.folderName(candidate), Modifier.padding(start = 8.dp))
         }
     }
-    CheckRow("Include videos", videos) { videos = it; apply() }
-    Albums(videos, albums) { albums = it; apply() }
-    CheckRow("Only on Wi-Fi or other unmetered networks", unmetered) { unmetered = it; apply() }
-    CheckRow("Only while charging", charging) { charging = it; apply() }
-    OutlinedButton(onClick = { Backups.now(context) }) { Text("Back up now") }
-    RemoveOriginalsSettings(node, folder, revision)
+    CheckRow("Include videos", backup.videos) { on -> model.updateBackup { it.copy(videos = on) } }
+    val albums by model.albums.collectAsStateWithLifecycle()
+    Albums(albums, backup.albums) { chosen -> model.updateBackup { it.copy(albums = chosen) } }
+    CheckRow("Only on Wi-Fi or other unmetered networks", backup.unmeteredOnly) { on ->
+        model.updateBackup { it.copy(unmeteredOnly = on) }
+    }
+    CheckRow("Only while charging", backup.chargingOnly) { on -> model.updateBackup { it.copy(chargingOnly = on) } }
+    OutlinedButton(onClick = model::backUpNow) { Text("Back up now") }
+    RemoveOriginalsSettings(model, backup.removeOriginals)
 }
 
 /** "Remove from phone after backup" (ADR 0020, 0022): off by default, asks before turning on. */
 @Composable
-private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
-    val context = LocalContext.current
-    val settings = Peer.settings
-    var on by remember { mutableStateOf(settings.removeOriginals) }
-    var confirmOn by remember { mutableStateOf(false) }
-    var removed by remember { mutableIntStateOf(0) }
-    var removing by remember { mutableStateOf<List<RemoveOriginals.Eligible>>(emptyList()) }
-    val eligible = remember(node, folder, on, revision, removed) {
-        if (on) runCatching { RemoveOriginals.eligible(context, node, folder) }.getOrDefault(emptyList()) else emptyList()
-    }
+private fun RemoveOriginalsSettings(model: SettingsViewModel, on: Boolean) {
+    var confirmOn by rememberSaveable { mutableStateOf(false) }
+    val eligible by model.eligible.collectAsStateWithLifecycle()
     val deleteRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) RemoveOriginals.removed(context, removing)
-        removing = emptyList()
-        removed++
+        model.removalAnswered(deleted = result.resultCode == Activity.RESULT_OK)
     }
 
     Text("Remove from phone after backup", style = MaterialTheme.typography.labelLarge)
@@ -163,13 +142,7 @@ private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
         Switch(
             checked = on,
             onCheckedChange = { turnOn ->
-                if (turnOn) {
-                    confirmOn = true
-                } else {
-                    on = false
-                    settings.removeOriginals = false
-                    RemoveOriginals.turnedOff(context)
-                }
+                if (turnOn) confirmOn = true else model.setRemoveOriginals(false)
             },
         )
     }
@@ -182,8 +155,7 @@ private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
         } else {
             Text("${eligible.size} photos and videos are safe on an always-on device.", style = MaterialTheme.typography.bodyMedium)
             OutlinedButton(onClick = {
-                removing = eligible
-                deleteRequest.launch(IntentSenderRequest.Builder(RemoveOriginals.deleteRequest(context, eligible)).build())
+                deleteRequest.launch(IntentSenderRequest.Builder(model.deleteRequest(eligible)).build())
             }) { Text("Remove from phone") }
         }
     }
@@ -203,8 +175,7 @@ private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmOn = false
-                    on = true
-                    settings.removeOriginals = true
+                    model.setRemoveOriginals(true)
                 }) { Text("Turn on") }
             },
             dismissButton = { TextButton(onClick = { confirmOn = false }) { Text("Cancel") } },
@@ -214,11 +185,7 @@ private fun RemoveOriginalsSettings(node: Node, folder: String, revision: Int) {
 
 /** All albums, or only the chosen ones. */
 @Composable
-private fun Albums(includeVideos: Boolean, chosen: Set<String>, onChange: (Set<String>) -> Unit) {
-    val context = LocalContext.current
-    val albums = remember(includeVideos) {
-        runCatching { CameraRollBackup.albums(context, includeVideos) }.getOrDefault(emptyList())
-    }
+private fun Albums(albums: List<CameraRollBackup.Album>, chosen: Set<String>, onChange: (Set<String>) -> Unit) {
     CheckRow("All albums", chosen.isEmpty()) { all ->
         onChange(if (all) emptySet() else albums.map { it.id }.toSet())
     }
@@ -242,11 +209,10 @@ private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
 }
 
 @Composable
-private fun FolderSettings(node: Node, folder: Folder, onChanged: () -> Unit) {
+private fun FolderSettings(model: SettingsViewModel, folder: Folder, error: String?) {
     val context = LocalContext.current
     var days by remember(folder.id, folder.retentionDays) { mutableStateOf(folder.retentionDays.toString()) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var confirmEmpty by remember { mutableStateOf(false) }
+    var confirmEmpty by rememberSaveable { mutableStateOf(false) }
 
     Text(Peer.folderName(folder), style = MaterialTheme.typography.titleMedium)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -261,10 +227,7 @@ private fun FolderSettings(node: Node, folder: Folder, onChanged: () -> Unit) {
         )
         TextButton(
             enabled = days.toUIntOrNull()?.let { it != folder.retentionDays } == true,
-            onClick = {
-                error = runCatching { node.setRetention(folder.id, days.toUInt()) }.exceptionOrNull()?.message
-                onChanged()
-            },
+            onClick = { model.setRetention(folder.id, days.toUInt()) },
         ) { Text("Save") }
     }
 
@@ -305,8 +268,7 @@ private fun FolderSettings(node: Node, folder: Folder, onChanged: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmEmpty = false
-                    error = runCatching { node.emptyRecycleBin(folder.id) }.exceptionOrNull()?.message
-                    onChanged()
+                    model.emptyRecycleBin(folder.id)
                 }) { Text("Empty") }
             },
             dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text("Cancel") } },

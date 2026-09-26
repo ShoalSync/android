@@ -8,8 +8,10 @@ import android.provider.MediaStore
 import java.io.File
 import java.security.MessageDigest
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.tidefell.ffi.Node
 
 /**
@@ -25,7 +27,8 @@ import org.tidefell.ffi.Node
  * content changed, it was edited in place and is backed up again, as a new file beside the first;
  * if not, only its stamp is updated.
  *
- * Only one run happens at a time in a process, whatever started it.
+ * Only one run happens at a time in a process, whatever started it. Its functions are safe to
+ * call from the main thread: they read `MediaStore` and copy files on [Dispatchers.IO].
  */
 object CameraRollBackup {
     private data class Item(
@@ -105,11 +108,23 @@ object CameraRollBackup {
         candidates: RemoveOriginals.Candidates? = null,
         progress: (Int, Int) -> Unit = { _, _ -> },
     ): Int = running.withLock {
+        withContext(Dispatchers.IO) { backUp(context, node, folder, includeVideos, albums, candidates, progress) }
+    }
+
+    private suspend fun backUp(
+        context: Context,
+        node: Node,
+        folder: String,
+        includeVideos: Boolean,
+        albums: Set<String>,
+        candidates: RemoveOriginals.Candidates?,
+        progress: (Int, Int) -> Unit,
+    ): Int {
         val ledger = Ledger.of(context)
         val pending = items(context, includeVideos)
             .filter { albums.isEmpty() || it.album.id in albums }
             .filterNot { ledger.isBackedUp(it.key, it.stamp) }
-        if (pending.isEmpty()) return@withLock 0
+        if (pending.isEmpty()) return 0
         val sizes = node.files(folder).associate { it.path to it.size.toLong() }
         val taken = sizes.keys.toMutableSet()
         val staging = File(context.cacheDir, "backup").apply { mkdirs() }
@@ -154,12 +169,13 @@ object CameraRollBackup {
             ledger.record(item.key, hash, item.stamp)
         }
         progress(pending.size, pending.size)
-        written
+        return written
     }
 
     /** Albums that hold photos or, with [includeVideos], videos, by name. */
-    fun albums(context: Context, includeVideos: Boolean): List<Album> =
+    suspend fun albums(context: Context, includeVideos: Boolean): List<Album> = withContext(Dispatchers.IO) {
         items(context, includeVideos).map { it.album }.distinct().sortedBy { it.name.lowercase() }
+    }
 
     private fun items(context: Context, includeVideos: Boolean): List<Item> {
         val collections = buildList {
