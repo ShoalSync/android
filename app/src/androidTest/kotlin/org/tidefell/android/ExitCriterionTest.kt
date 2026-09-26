@@ -46,9 +46,9 @@ class ExitCriterionTest {
         resolver.update(photo, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
     }
 
-    private suspend fun eventually(what: String, check: () -> Boolean) {
+    private suspend fun eventually(what: String, check: suspend () -> Boolean) {
         repeat(600) {
-            if (runCatching(check).getOrDefault(false)) return
+            if (runCatching { check() }.getOrDefault(false)) return
             delay(100)
         }
         throw AssertionError("timed out waiting for $what")

@@ -14,6 +14,8 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.tidefell.android.R
 import org.tidefell.android.ui.MainActivity
 import org.tidefell.ffi.Node
@@ -26,7 +28,7 @@ import org.tidefell.ffi.Node
  * on are never candidates. A candidate is eligible once its file in the folder has a confirmed
  * copy on a full replica. Eligible items are deleted only through the system's delete request,
  * which Android shows as its own confirmation; a notification opens it, because background work
- * cannot.
+ * cannot. Checking which items are eligible queries `MediaStore`, on [Dispatchers.IO].
  */
 object RemoveOriginals {
     /** `MediaStore.createDeleteRequest` needs Android 11. */
@@ -90,10 +92,10 @@ object RemoveOriginals {
      * and either restamps it, if its content is unchanged, or backs up the edited item, which
      * replaces the candidate.
      */
-    fun eligible(context: Context, node: Node, folder: String): List<Eligible> {
+    suspend fun eligible(context: Context, node: Node, folder: String): List<Eligible> = withContext(Dispatchers.IO) {
         val store = Candidates.of(context)
         val stored = store.all()
-        if (stored.isEmpty()) return emptyList()
+        if (stored.isEmpty()) return@withContext emptyList()
         // Candidates stored before stamps were kept cannot be checked, so they are never offered.
         val unverifiable = stored.filterValues { it == null }.keys
         val candidates = stored.mapNotNull { (key, c) -> c?.let { key to it } }.toMap()
@@ -112,7 +114,7 @@ object RemoveOriginals {
             }
         }
         store.remove(dropped)
-        return eligible
+        eligible
     }
 
     /** The system's delete request for [items]; Android asks before anything is deleted. */
@@ -140,7 +142,7 @@ object RemoveOriginals {
      * Posts or updates the notification that opens the delete request when more items are
      * eligible than it last said; clears it when none are.
      */
-    fun notifyIfEligible(context: Context, node: Node, folder: String) {
+    suspend fun notifyIfEligible(context: Context, node: Node, folder: String) {
         val count = eligible(context, node, folder).size
         val prefs = context.getSharedPreferences(NOTIFIED, Context.MODE_PRIVATE)
         val notified = prefs.getInt("count", 0)

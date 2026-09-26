@@ -17,34 +17,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
+import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
 
 /** Folders and their files. Files open through the documents provider, fetching placeholders. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen() {
-    val node by Peer.node.collectAsState()
-    var open by remember { mutableStateOf<Folder?>(null) }
-    var settings by remember { mutableStateOf(false) }
-    var revision by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        Peer.start()
-        Peer.events.collect { revision++ }
-    }
+fun HomeScreen(model: HomeViewModel = viewModel()) {
+    val node by model.node.collectAsStateWithLifecycle()
+    val open by model.open.collectAsStateWithLifecycle()
+    val folders by model.folders.collectAsStateWithLifecycle()
+    val files by model.files.collectAsStateWithLifecycle()
+    var settings by rememberSaveable { mutableStateOf(false) }
     BackHandler(enabled = open != null || settings) {
-        if (settings) settings = false else open = null
+        if (settings) settings = false else model.open(null)
     }
 
     val title = when {
@@ -61,13 +58,12 @@ fun HomeScreen() {
             )
         },
     ) { padding ->
-        val current = node
+        val folder = open
         Column(Modifier.fillMaxSize().padding(padding)) {
             when {
-                current == null -> CircularProgressIndicator(Modifier.padding(24.dp))
-                settings -> SettingsScreen(current, revision)
-                open == null -> {
-                    val folders = remember(current, revision) { current.folders() }
+                node == null -> CircularProgressIndicator(Modifier.padding(24.dp))
+                settings -> SettingsScreen()
+                folder == null -> {
                     if (folders.isEmpty()) {
                         Text("No folders yet.", Modifier.padding(24.dp))
                     }
@@ -78,21 +74,20 @@ fun HomeScreen() {
                                 supportingContent = {
                                     Text(if (folder.partialBudget != null) "Files on demand" else "Everything on this phone")
                                 },
-                                modifier = Modifier.clickable { open = folder },
+                                modifier = Modifier.clickable { model.open(folder) },
                             )
                         }
                     }
                 }
-                else -> FileList(current, open!!, revision)
+                else -> FileList(folder, files)
             }
         }
     }
 }
 
 @Composable
-private fun FileList(node: org.tidefell.ffi.Node, folder: Folder, revision: Int) {
+private fun FileList(folder: Folder, files: List<File>) {
     val context = LocalContext.current
-    val files = remember(folder.id, revision) { runCatching { node.files(folder.id) }.getOrDefault(emptyList()) }
     LazyColumn {
         items(files, key = { it.entry }) { file ->
             ListItem(
