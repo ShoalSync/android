@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "org.tidefell.android"
-        minSdk = 29
+        minSdk = 30
         targetSdk = 36
         versionCode = 1
         versionName = ffiVersion

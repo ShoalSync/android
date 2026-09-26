@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the Phase 4 and 5 exit criteria (ExitCriterionTest) on a running emulator against the pinned
+# Runs the Phase 4 and 5d exit criteria (ExitCriterionTest) on a running emulator against the pinned
 # release's tidefelld on this host.
 #
 # Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
@@ -33,12 +33,14 @@ for _ in $(seq 1 30); do
 done
 (exec 3<>/dev/tcp/127.0.0.1/3340) 2>/dev/null || { echo "iroh-relay did not start" >&2; exit 1; }
 
-# The laptop: a daemon holding the user key, with one folder and one file.
+# The laptop: a daemon holding the user key, a full replica of two folders with one file each.
 tidefelld init --data-dir "$work/laptop" --name laptop
 user=$(tidefelld id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
 folder=$(tidefelld new-folder-id)
-mkdir -p "$work/Photos"
+camera=$(tidefelld new-folder-id)
+mkdir -p "$work/Photos" "$work/Camera"
 printf 'sand and sea' > "$work/Photos/beach.jpg"
+printf 'made on the laptop' > "$work/Camera/desktop.txt"
 cat > "$work/tidefelld.toml" <<TOML
 data_dir = "$work/laptop"
 
@@ -50,6 +52,13 @@ bind = "0.0.0.0:7777"
 [[folders]]
 id = "$folder"
 path = "$work/Photos"
+members = ["$user"]
+retention_days = 30
+scan_interval_secs = 1
+
+[[folders]]
+id = "$camera"
+path = "$work/Camera"
 members = ["$user"]
 retention_days = 30
 scan_interval_secs = 1
@@ -75,18 +84,23 @@ pids+=($!)
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url"
 
-# The file saved on the emulator, and the backed-up photo, reached the daemon.
+# The file saved on the emulator and the photo taken there reached the daemon, and the file
+# deleted on the phone is still on the daemon.
 saved=false
-backed_up=false
+photo=false
 for _ in $(seq 1 60); do
   [ "$(cat "$work/Photos/from-android.txt" 2>/dev/null)" = "hello from android" ] && saved=true
-  compgen -G "$work/Photos/Camera/*/*/tidefell-test.jpg" > /dev/null && backed_up=true
-  if $saved && $backed_up; then
-    echo "exit criterion met: from-android.txt and the camera backup synced to the daemon"
-    exit 0
-  fi
+  [ -f "$work/Camera/IMG_0001.jpg" ] && photo=true
+  if $saved && $photo; then break; fi
   sleep 1
 done
+kept=false
+[ "$(cat "$work/Camera/desktop.txt" 2>/dev/null)" = "made on the laptop" ] && kept=true
+if $saved && $photo && $kept; then
+  echo "exit criteria met: the saved file and the photo reached the daemon, and the phone's delete stayed on the phone"
+  exit 0
+fi
 $saved || echo "from-android.txt did not reach the daemon" >&2
-$backed_up || echo "Camera/<year>/<month>/tidefell-test.jpg did not reach the daemon" >&2
+$photo || echo "Camera/IMG_0001.jpg did not reach the daemon" >&2
+$kept || echo "Camera/desktop.txt was deleted on the daemon" >&2
 exit 1

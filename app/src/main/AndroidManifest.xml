@@ -7,13 +7,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Camera-roll backup (ADR 0020): read only. Removing originals after backup goes through
-         MediaStore.createDeleteRequest, where Android asks the user, and needs no permission. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Phone folders (ADR 0025): the engine reads and writes the folders the user adds by path.
+         Asked for only when a folder on the phone is first added. -->
     <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <application
         android:name=".TidefellApp"
@@ -41,7 +39,7 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- WorkManager's foreground service, for long camera-roll backups. -->
+        <!-- WorkManager's foreground service, for syncing phone folders in the background. -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

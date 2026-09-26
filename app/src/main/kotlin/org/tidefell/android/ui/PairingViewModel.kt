@@ -1,16 +1,12 @@
 package org.tidefell.android.ui
 
 import android.os.Build
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import java.io.File
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.tidefell.android.Peer
 import org.tidefell.ffi.FolderOffer
 import org.tidefell.ffi.Pairing
@@ -25,7 +21,7 @@ class PairingViewModel : ViewModel() {
         data object Starting : Step
         data class ShowCode(val code: String) : Step
         data class Confirm(val approver: String, val code: String) : Step
-        data class Join(val name: String, val offers: List<FolderOffer>, val error: String? = null) : Step
+        data class Join(val name: String, val offers: List<FolderOffer>) : Step
         data class Failed(val message: String) : Step
     }
 
@@ -41,19 +37,6 @@ class PairingViewModel : ViewModel() {
 
     /** Starts over with a new code. */
     fun retry() = start()
-
-    /** Joins [offer], then calls [onJoined]; stays on the offers with an error if joining fails. */
-    fun join(offer: FolderOffer, onJoined: () -> Unit) {
-        viewModelScope.launch {
-            runCatching { join(offer) }
-                .onSuccess { onJoined() }
-                .onFailure { e ->
-                    Log.w(TAG, "joining ${offer.name} failed", e)
-                    val step = current.value
-                    if (step is Step.Join) current.value = step.copy(error = e.message ?: e.toString())
-                }
-        }
-    }
 
     private fun start() {
         job?.cancel()
@@ -87,23 +70,5 @@ class PairingViewModel : ViewModel() {
 
     override fun onCleared() {
         pairing?.cancel()
-    }
-
-    private companion object {
-        const val TAG = "PairingViewModel"
-    }
-}
-
-/** Joins an offered folder as a partial replica within the phone's budget. */
-suspend fun join(offer: FolderOffer) {
-    val node = Peer.start()
-    withContext(Dispatchers.IO) {
-        node.joinFolder(
-            offer.id,
-            File(Peer.foldersDir, offer.name).path,
-            Peer.settings.budgetBytes.toULong(),
-            offer.members,
-            offer.retentionDays,
-        )
     }
 }

@@ -20,11 +20,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
 
 /**
- * Every joined folder as a root in the system file picker and Files app (ADR 0016). Listings come
+ * Every folder in app storage as a root in the system file picker and Files app (ADR 0016). Listings come
  * from the folder's metadata, so placeholders appear without being stored; opening one fetches it
  * from peers, and saving records a new version.
  *
@@ -58,7 +59,8 @@ class TidefellDocumentsProvider : DocumentsProvider() {
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val cursor = MatrixCursor(projection ?: ROOT_COLUMNS)
         val node = runCatching { node() }.getOrNull() ?: return cursor
-        for (folder in node.folders()) {
+        // Folders on the phone are already in the Files app where they live (ADR 0025).
+        for (folder in node.folders().filter(PhoneFolders::inAppStorage)) {
             cursor.newRow().apply {
                 add(Root.COLUMN_ROOT_ID, folder.id)
                 add(Root.COLUMN_DOCUMENT_ID, "${folder.id}/")
