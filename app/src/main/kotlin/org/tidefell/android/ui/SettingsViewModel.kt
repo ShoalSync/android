@@ -46,6 +46,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    /** Upload and download limits in KiB per second, 0 for none, and whether local devices count. */
+    data class Limits(val uploadKib: Long, val downloadKib: Long, val limitLocal: Boolean)
+
+    private val limitsState = MutableStateFlow(Limits(settings.uploadKib, settings.downloadKib, settings.limitLocal))
+    private val limitsError = MutableStateFlow<String?>(null)
+
+    val limits: StateFlow<Limits> = limitsState
+
+    /** Why the last limits could not be applied, if they could not. */
+    val limitsProblem: StateFlow<String?> = limitsError
+
+    /** Keeps [limits] and applies them to the running node at once (ADR 0029). */
+    fun setLimits(limits: Limits) {
+        limitsState.value = limits
+        settings.uploadKib = limits.uploadKib
+        settings.downloadKib = limits.downloadKib
+        settings.limitLocal = limits.limitLocal
+        viewModelScope.launch {
+            limitsError.value = withContext(Dispatchers.IO) {
+                runCatching { Peer.start().setLimits(settings.limits()) }.exceptionOrNull()?.let { it.message ?: it.toString() }
+            }
+        }
+    }
+
     val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) { it.folders() }
 
     /** The last error of an action on a folder, by folder ID. */

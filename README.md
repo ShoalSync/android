@@ -68,6 +68,14 @@ access).
 - **Recycle bin.** Each folder's recycle bin on this phone lists what was deleted everywhere and
   what was removed from this phone only, to restore or delete for good. Settings sets how long
   this phone keeps them. Other devices keep their own copies.
+- **Earlier versions and conflicts.** A file's earlier versions kept on this phone can be opened
+  and restored. When a file was changed on two devices apart, a notification asks which version
+  to keep; its screen opens each one and keeps one or both (ADR 0029).
+- **Pause, speed and keeping files.** Syncing can be paused for a folder or the whole phone,
+  upload and download speed limited, and files kept on the phone outside the space budget.
+- **Crashes.** Engine logs go to logcat and to files in the app's data, and crashes of the engine
+  or the app are recorded. The app says when Tidefell stopped, offers to start syncing again,
+  and shares the report (ADR 0030).
 
 ## Tests
 

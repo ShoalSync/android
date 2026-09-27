@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
 import org.tidefell.android.folders.Housekeeping
 import org.tidefell.ffi.EventListener
 import org.tidefell.ffi.Folder
+import org.tidefell.ffi.Limits
 import org.tidefell.ffi.Network
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
@@ -25,12 +26,19 @@ object Peer {
     private val lock = Mutex()
     private val running = MutableStateFlow<Node?>(null)
     private val changes = MutableSharedFlow<NodeEvent>(extraBufferCapacity = 64)
+    private val stopped = MutableStateFlow<String?>(null)
 
     /** The running node, or null before pairing or while starting. */
     val node: StateFlow<Node?> = running
 
     /** Everything that changes in the node's folders. */
     val events: SharedFlow<NodeEvent> = changes
+
+    /**
+     * Why the node stopped by itself, after an error in the engine (ADR 0030), or null while it
+     * runs. [restart] starts it again from its saved state.
+     */
+    val crashed: StateFlow<String?> = stopped
 
     fun init(context: Context) {
         app = context.applicationContext
@@ -54,9 +62,13 @@ object Peer {
         running.value ?: Node.start(dataDir, settings.network()).also { node ->
             node.subscribe(object : EventListener {
                 override fun onEvent(event: NodeEvent) {
+                    if (event is NodeEvent.Crashed) stopped.value = event.message
                     changes.tryEmit(event)
                 }
             })
+            // The engine keeps limits until it stops; the app keeps them for good (ADR 0029).
+            node.setLimits(settings.limits())
+            stopped.value = null
             running.value = node
             Housekeeping.start(app, node, events)
         }
@@ -72,6 +84,13 @@ object Peer {
             node.shutdown()
             node.close()
         }
+    }
+
+    /** Starts the node again after it stopped by itself. */
+    suspend fun restart(): Node {
+        // A node that crashed may fail to shut down cleanly; its saved state is what counts.
+        runCatching { stop() }.onFailure { running.value = null }
+        return start()
     }
 
     fun folderName(folder: Folder): String = File(folder.path).name
@@ -131,6 +150,27 @@ class Settings(private val prefs: SharedPreferences) {
             if (sinceMs == null) remove("remove_after_backup.$folder") else putLong("remove_after_backup.$folder", sinceMs)
         }.apply()
     }
+
+    /** Most KiB per second sent to other devices, or 0 for no limit (ADR 0029). */
+    var uploadKib: Long
+        get() = prefs.getLong("upload_kib", 0)
+        set(value) = prefs.edit().putLong("upload_kib", value).apply()
+
+    /** Most KiB per second received from other devices, or 0 for no limit. */
+    var downloadKib: Long
+        get() = prefs.getLong("download_kib", 0)
+        set(value) = prefs.edit().putLong("download_kib", value).apply()
+
+    /** Also limit traffic to devices on the same network. */
+    var limitLocal: Boolean
+        get() = prefs.getBoolean("limit_local", false)
+        set(value) = prefs.edit().putBoolean("limit_local", value).apply()
+
+    fun limits(): Limits = Limits(
+        upload = uploadKib.takeIf { it > 0 }?.let { (it * 1024).toULong() },
+        download = downloadKib.takeIf { it > 0 }?.let { (it * 1024).toULong() },
+        limitLocal = limitLocal,
+    )
 
     fun network(): Network = Network(
         relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),

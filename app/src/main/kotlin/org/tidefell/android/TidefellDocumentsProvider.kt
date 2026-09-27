@@ -205,6 +205,7 @@ class TidefellDocumentsProvider : DocumentsProvider() {
                 resolver.notifyChange(DocumentsContract.buildRootsUri(AUTHORITY), null)
                 return
             }
+            is NodeEvent.ConflictDetected, is NodeEvent.Crashed -> return
         }
         val parent = path.substringBeforeLast('/', "")
         resolver.notifyChange(DocumentsContract.buildChildDocumentsUri(AUTHORITY, "$folder/$parent"), null)

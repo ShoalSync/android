@@ -44,6 +44,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = vie
         BackgroundSettings(model, hasPhoneFolders = folders.any { !PhoneFolders.inAppStorage(it) })
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
         NetworkSettings(model)
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        LimitSettings(model)
         folders.forEach { folder ->
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             FolderSettings(model, folder, errors[folder.id])
@@ -75,6 +77,42 @@ private fun NetworkSettings(model: SettingsViewModel) {
         "Your devices on the same Wi-Fi connect directly, even without internet. This phone's device ID is visible on the network.",
         style = MaterialTheme.typography.bodySmall,
     )
+}
+
+@Composable
+private fun LimitSettings(model: SettingsViewModel) {
+    val limits by model.limits.collectAsStateWithLifecycle()
+    val problem by model.limitsProblem.collectAsStateWithLifecycle()
+    var upload by remember(limits) { mutableStateOf(limits.uploadKib.takeIf { it > 0 }?.toString().orEmpty()) }
+    var download by remember(limits) { mutableStateOf(limits.downloadKib.takeIf { it > 0 }?.toString().orEmpty()) }
+    Text("Speed", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Most KiB per second this phone sends to and receives from your other devices. Leave empty for no limit; " +
+            "a limit is at least 64.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = upload,
+            onValueChange = { upload = it.filter(Char::isDigit).take(7) },
+            label = { Text("Upload") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedTextField(
+            value = download,
+            onValueChange = { download = it.filter(Char::isDigit).take(7) },
+            label = { Text("Download") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+        )
+    }
+    CheckRow("Limit devices on this network too", limits.limitLocal) { on -> model.setLimits(limits.copy(limitLocal = on)) }
+    val wanted = limits.copy(uploadKib = upload.toLongOrNull() ?: 0, downloadKib = download.toLongOrNull() ?: 0)
+    TextButton(enabled = wanted != limits, onClick = { model.setLimits(wanted) }) { Text("Save") }
+    problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
 @Composable

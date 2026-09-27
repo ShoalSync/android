@@ -65,6 +65,8 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
     val folderId = when (val p = page) {
         is Page.Files -> p.folder
         is Page.RecycleBin -> p.folder
+        is Page.History -> p.folder
+        is Page.Conflict -> p.folder
         else -> null
     }
     val folder = folders.firstOrNull { it.id == folderId }
@@ -75,6 +77,8 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
         Page.AddFolder -> "Add a folder"
         is Page.Files -> folder?.let(Peer::folderName) ?: ""
         is Page.RecycleBin -> "Recycle bin"
+        is Page.History -> "Earlier versions"
+        is Page.Conflict -> "Choose a version"
     }
     Scaffold(
         topBar = {
@@ -84,6 +88,11 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
                     when (page) {
                         Page.Folders -> TextButton(onClick = { model.go(Page.Settings) }) { Text("Settings") }
                         is Page.Files -> {
+                            if (folder != null) {
+                                TextButton(onClick = { if (folder.paused) model.resume(folder.id) else model.pause(folder.id) }) {
+                                    Text(if (folder.paused) "Resume" else "Pause")
+                                }
+                            }
                             if (folder != null && PhoneFolders.choice(folder).let { it == SyncChoice.BACKUP_ONLY || it == SyncChoice.TWO_WAY }) {
                                 TextButton(onClick = { cleaningUp = true }) { Text("Clean up") }
                             }
@@ -112,11 +121,34 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
                 )
                 page is Page.Files && folder != null -> FileList(model, folder)
                 page is Page.RecycleBin && folder != null -> RecycleBin(model, folder)
-                else -> FolderList(folders) { model.go(Page.Files(it.id)) }
+                page is Page.History && folder != null -> HistoryPage(model, folder, (page as Page.History).path)
+                page is Page.Conflict && folder != null -> ConflictPage(model, folder, (page as Page.Conflict).path) { model.back() }
+                else -> {
+                    CrashNotice(model)
+                    DevicePause(model)
+                    FolderList(folders) { model.go(Page.Files(it.id)) }
+                }
             }
         }
     }
     if (cleaningUp && folder != null) CleanUpDialog(model, folder) { cleaningUp = false }
+}
+
+/** Pausing syncing on the whole phone (ADR 0029). */
+@Composable
+private fun DevicePause(model: HomeViewModel) {
+    val status by model.status.collectAsStateWithLifecycle()
+    val paused = status?.paused ?: return
+    if (paused) {
+        Text(
+            "Syncing is paused on this phone. Changes here are recorded and sent when it resumes.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+    TextButton(onClick = { if (paused) model.resume(null) else model.pause(null) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+        Text(if (paused) "Resume syncing" else "Pause syncing on this phone")
+    }
 }
 
 @Composable
@@ -130,7 +162,12 @@ private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
             ListItem(
                 headlineContent = { Text(Peer.folderName(folder)) },
                 supportingContent = {
-                    Text(if (choice == SyncChoice.FILES_ON_DEMAND) choice.title else "${folder.path}\n${choice.title}")
+                    val notes = listOfNotNull(
+                        "Paused".takeIf { folder.paused },
+                        "${folder.conflicts} files need a decision".takeIf { folder.conflicts > 0UL },
+                    ).joinToString(" · ")
+                    val summary = if (choice == SyncChoice.FILES_ON_DEMAND) choice.title else "${folder.path}\n${choice.title}"
+                    Text(if (notes.isEmpty()) summary else "$summary\n$notes")
                 },
                 modifier = Modifier.clickable { onOpen(folder) },
             )
@@ -145,6 +182,13 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
     val files by model.files.collectAsStateWithLifecycle()
     var acting by remember { mutableStateOf<File?>(null) }
     val inAppStorage = PhoneFolders.inAppStorage(folder)
+    if (folder.paused) {
+        Text(
+            "Syncing of this folder is paused. Changes here are recorded and sent when it resumes.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(16.dp),
+        )
+    }
     if (files.isEmpty()) Text("No files yet.", Modifier.padding(24.dp))
     LazyColumn {
         items(files, key = { it.entry }) { file ->
@@ -153,15 +197,20 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
                 supportingContent = {
                     Text(
                         when {
+                            file.conflicts > 0u -> "Changed on two devices: tap to choose a version"
                             file.onlyHere -> "Only on this phone"
+                            file.pinned -> "Kept on this phone"
                             file.onDisk -> "On this phone"
                             else -> "On your other devices"
                         },
+                        color = if (file.conflicts > 0u) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified,
                     )
                 },
                 modifier = Modifier.combinedClickable(
                     onClick = {
-                        if (inAppStorage) {
+                        if (file.conflicts > 0u) {
+                            model.go(Page.Conflict(folder.id, file.path))
+                        } else if (inAppStorage) {
                             val uri = DocumentsContract.buildDocumentUri(TidefellDocumentsProvider.AUTHORITY, "${folder.id}/${file.path}")
                             val intent = Intent(Intent.ACTION_VIEW)
                                 .setDataAndType(uri, TidefellDocumentsProvider.mimeOf(file.path))
@@ -229,6 +278,17 @@ private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDism
                         )
                     }
                 }
+                if (PhoneFolders.inAppStorage(folder)) {
+                    // A pinned file is fetched and never removed to save space (ADR 0029).
+                    TextButton(onClick = {
+                        if (file.pinned) model.unpin(folder.id, file.path) else model.pin(folder.id, file.path)
+                        onDismiss()
+                    }) { Text(if (file.pinned) "Stop keeping on this phone" else "Keep on this phone") }
+                }
+                TextButton(onClick = {
+                    model.go(Page.History(folder.id, file.path))
+                    onDismiss()
+                }) { Text("Earlier versions") }
                 TextButton(onClick = { confirmDelete = true }) { Text("Delete from all devices") }
             }
         },

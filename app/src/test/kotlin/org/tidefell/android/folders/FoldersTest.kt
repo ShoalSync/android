@@ -27,6 +27,7 @@ class FoldersTest {
         conflicts = 0u,
         confirmedCopies = confirmed,
         onlyHere = onlyHere,
+        pinned = false,
     )
 
     @Test

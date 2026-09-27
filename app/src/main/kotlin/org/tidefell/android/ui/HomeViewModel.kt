@@ -13,10 +13,13 @@ import kotlinx.coroutines.withContext
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.Removable
+import org.tidefell.ffi.Crash
+import org.tidefell.ffi.DeviceStatus
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.Recycled
+import org.tidefell.ffi.Version
 
 /** Where the app is. The back button goes to the page's parent. */
 sealed interface Page {
@@ -41,6 +44,21 @@ sealed interface Page {
     data class RecycleBin(val folder: String) : Page {
         override val parent: Page = Files(folder)
     }
+
+    /** A file's earlier versions kept on this phone (ADR 0029). */
+    data class History(val folder: String, val path: String) : Page {
+        override val parent: Page = Files(folder)
+    }
+
+    /** A file changed on two devices apart, waiting for a decision (ADR 0029). */
+    data class Conflict(val folder: String, val path: String) : Page {
+        override val parent: Page = Files(folder)
+    }
+}
+
+/** Pages asked for from outside the app, such as by a notification. */
+object Navigation {
+    val requests = MutableStateFlow<Page?>(null)
 }
 
 /** Folders, the files and recycle bin of the open one, and what can be done to them. */
@@ -67,9 +85,37 @@ class HomeViewModel : ViewModel() {
         (current.value as? Page.RecycleBin)?.let { node.recycleBin(it.folder) } ?: emptyList()
     }
 
+    /** The versions of the file whose history or conflict is open. */
+    val versions: StateFlow<List<Version>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+        when (val page = current.value) {
+            is Page.History -> node.versions(page.folder, page.path)
+            is Page.Conflict -> node.versions(page.folder, page.path)
+            else -> emptyList()
+        }
+    }
+
+    /** This phone, including whether syncing is paused on it. */
+    val status: StateFlow<DeviceStatus?> = viewModelScope.nodeState(null, refresh = changes) { it.status() }
+
+    /** Why the node stopped by itself, if it did (ADR 0030). */
+    val crashed: StateFlow<String?> = Peer.crashed
+
+    /** Crashes the user has not been told about yet (ADR 0030). */
+    val crashes: StateFlow<List<Crash>> = viewModelScope.nodeState(emptyList(), refresh = changes) {
+        org.tidefell.ffi.crashes(Peer.dataDir).filter { !it.seen }
+    }
+
     init {
         viewModelScope.launch {
             runCatching { Peer.start() }.onFailure { Log.e(TAG, "starting the node failed", it) }
+        }
+        viewModelScope.launch {
+            Navigation.requests.collect { page ->
+                if (page != null) {
+                    current.value = page
+                    Navigation.requests.value = null
+                }
+            }
         }
     }
 
@@ -82,6 +128,10 @@ class HomeViewModel : ViewModel() {
         val parent = current.value.parent ?: return false
         current.value = parent
         return true
+    }
+
+    fun show(message: String) {
+        messages.value = message
     }
 
     fun messageShown() {
@@ -126,10 +176,62 @@ class HomeViewModel : ViewModel() {
         "Deleted ${removed.size} files from this phone for good."
     }
 
+    fun pause(folder: String?) = act {
+        withContext(Dispatchers.IO) { Peer.start().pause(folder) }
+        if (folder == null) "Syncing is paused on this phone." else "Syncing of this folder is paused."
+    }
+
+    fun resume(folder: String?) = act {
+        withContext(Dispatchers.IO) { Peer.start().resume(folder) }
+        "Syncing again."
+    }
+
+    /** Keeps [path] on this phone, fetched and never removed to save space (ADR 0029). */
+    fun pin(folder: String, path: String) = act {
+        Peer.start().pin(folder, path)
+        "$path stays on this phone."
+    }
+
+    fun unpin(folder: String, path: String) = act {
+        Peer.start().unpin(folder, path)
+        "$path may be removed from this phone again to save space."
+    }
+
+    fun restoreVersion(folder: String, path: String, version: Version) = act {
+        Peer.start().restoreVersion(folder, path, version.id)
+        "Restored the earlier version of $path on all your devices."
+    }
+
+    /** Keeps [keep], a version's ID or `both` (ADR 0029). */
+    fun resolve(folder: String, path: String, keep: String) = act {
+        Peer.start().resolve(folder, path, keep)
+        current.value = Page.Files(folder)
+        if (keep == "both") "Kept both versions of $path on all your devices." else "Kept the version you chose on all your devices."
+    }
+
+    /** A read-only copy of [version] of [path], to open in another app. */
+    suspend fun openVersion(folder: String, path: String, version: Version): String =
+        if (version.id.startsWith("previous:")) {
+            withContext(Dispatchers.IO) { Peer.start().versionFile(folder, path, version.id) }
+        } else {
+            Peer.start().openVersion(folder, path, version.id)
+        }
+
+    fun dismissCrashes() = act {
+        withContext(Dispatchers.IO) { org.tidefell.ffi.dismissCrashes(Peer.dataDir) }
+        ""
+    }
+
+    /** Starts syncing again after the node stopped by itself. */
+    fun restart() = act {
+        Peer.restart()
+        "Syncing again."
+    }
+
     /** Runs [action] and shows what it returns, or its error. */
     private fun act(action: suspend () -> String) {
         viewModelScope.launch {
-            messages.value = runCatching { action() }.getOrElse { it.message ?: it.toString() }
+            messages.value = runCatching { action() }.getOrElse { it.message ?: it.toString() }.ifEmpty { null }
             changes.update { it + 1 }
         }
     }
@@ -137,6 +239,8 @@ class HomeViewModel : ViewModel() {
     private fun folderOf(page: Page): String? = when (page) {
         is Page.Files -> page.folder
         is Page.RecycleBin -> page.folder
+        is Page.History -> page.folder
+        is Page.Conflict -> page.folder
         else -> null
     }
 

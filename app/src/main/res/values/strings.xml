@@ -6,4 +6,5 @@
     <string name="folders_channel">Phone folders</string>
     <string name="folders_notification">Syncing folders on this phone</string>
     <string name="on_other_devices">On your other devices</string>
+    <string name="conflicts_channel">Conflicts</string>
 </resources>

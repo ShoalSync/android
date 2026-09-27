@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Where version copies can be: the reserved directory of a folder in app storage, or of a
+     folder on the phone's shared storage (ADR 0029). -->
+<paths>
+    <files-path name="app" path="folders/" />
+    <external-path name="storage" path="." />
+</paths>

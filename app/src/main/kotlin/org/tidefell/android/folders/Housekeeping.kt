@@ -18,13 +18,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import org.tidefell.android.Notifications
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
 
 /**
  * Work that follows the node's events while it runs: files written into or removed from phone
- * folders are announced to `MediaStore`, so galleries show them (ADR 0025), and remove after
- * backup runs shortly after folders change and every minute, as confirmations arrive.
+ * folders are announced to `MediaStore`, so galleries show them (ADR 0025), a new conflict is
+ * notified (ADR 0029), and remove after backup runs shortly after folders change and every
+ * minute, as confirmations arrive.
  */
 object Housekeeping {
     private const val TAG = "Housekeeping"
@@ -44,6 +46,11 @@ object Housekeeping {
                 .onFailure { Log.w(TAG, "scheduling background sync failed", it) }
             launch {
                 events.collect { event ->
+                    if (event is NodeEvent.ConflictDetected) {
+                        runCatching { Notifications.conflict(app, node, event.folder, event.path) }
+                            .onFailure { Log.w(TAG, "notifying a conflict failed", it) }
+                        return@collect
+                    }
                     val (folder, path) = when (event) {
                         is NodeEvent.FileUpdated -> event.folder to event.path
                         is NodeEvent.FileRemoved -> event.folder to event.path

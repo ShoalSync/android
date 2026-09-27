@@ -46,6 +46,17 @@
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
 
+        <!-- Read-only copies of earlier and conflicting versions, opened in other apps (ADR 0029). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="org.tidefell.android.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <provider
             android:name=".TidefellDocumentsProvider"
             android:authorities="org.tidefell.android.documents"
