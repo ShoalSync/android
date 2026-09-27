@@ -42,6 +42,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = vie
     val errors by model.errors.collectAsStateWithLifecycle()
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BackgroundSettings(model, hasPhoneFolders = folders.any { !PhoneFolders.inAppStorage(it) })
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        NetworkSettings(model)
         folders.forEach { folder ->
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             FolderSettings(model, folder, errors[folder.id])
@@ -62,6 +64,17 @@ private fun BackgroundSettings(model: SettingsViewModel, hasPhoneFolders: Boolea
     }
     CheckRow("Only while charging", background.chargingOnly) { on -> model.setBackground { it.copy(chargingOnly = on) } }
     if (hasPhoneFolders) OutlinedButton(onClick = model::syncNow) { Text("Sync now") }
+}
+
+@Composable
+private fun NetworkSettings(model: SettingsViewModel) {
+    val localDiscovery by model.localDiscovery.collectAsStateWithLifecycle()
+    Text("Network", style = MaterialTheme.typography.titleMedium)
+    CheckRow("Find my devices on this network", localDiscovery, model::setLocalDiscovery)
+    Text(
+        "Your devices on the same Wi-Fi connect directly, even without internet. This phone's device ID is visible on the network.",
+        style = MaterialTheme.typography.bodySmall,
+    )
 }
 
 @Composable

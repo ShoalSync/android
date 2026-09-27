@@ -69,6 +69,7 @@ class ExitCriterionTest {
         Peer.foldersDir.deleteRecursively()
         Peer.settings.relay = relay
         Peer.settings.addressLookup = false
+        Peer.settings.localDiscovery = false
 
         // Pair: the host approves the code it finds in logcat.
         val pairing = Pairing.start(Peer.dataDir, Peer.settings.network(), "Emulator")

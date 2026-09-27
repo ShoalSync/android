@@ -89,6 +89,11 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean("address_lookup", true)
         set(value) = prefs.edit().putBoolean("address_lookup", value).apply()
 
+    /** Find this user's devices on the local network with mDNS (ADR 0029). Read when the peer starts. */
+    var localDiscovery: Boolean
+        get() = prefs.getBoolean("local_discovery", true)
+        set(value) = prefs.edit().putBoolean("local_discovery", value).apply()
+
     /** Bytes of other devices' files kept on the phone per folder. */
     var budgetBytes: Long
         get() = prefs.getLong("budget_bytes", 2L shl 30)
@@ -130,6 +135,7 @@ class Settings(private val prefs: SharedPreferences) {
     fun network(): Network = Network(
         relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),
         addressLookup = addressLookup,
+        localDiscovery = localDiscovery,
         bind = null,
     )
 }

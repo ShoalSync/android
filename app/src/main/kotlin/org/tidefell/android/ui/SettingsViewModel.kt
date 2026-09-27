@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.tidefell.android.Peer
+import org.tidefell.android.SyncService
 import org.tidefell.android.folders.FolderSync
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
@@ -27,6 +28,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val errorsByFolder = MutableStateFlow<Map<String, String>>(emptyMap())
 
     val background: StateFlow<Background> = backgroundState
+
+    private val localDiscoveryState = MutableStateFlow(settings.localDiscovery)
+
+    /** Whether this phone finds the user's devices on the local network. */
+    val localDiscovery: StateFlow<Boolean> = localDiscoveryState
+
+    /** Turns local discovery on or off; the peer restarts, because it reads it at start. */
+    fun setLocalDiscovery(on: Boolean) {
+        localDiscoveryState.value = on
+        settings.localDiscovery = on
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                Peer.stop()
+                SyncService.start(app)
+            }
+        }
+    }
 
     val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) { it.folders() }
 

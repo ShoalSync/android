@@ -47,6 +47,7 @@ data_dir = "$work/laptop"
 [network]
 relay = { mode = "custom", urls = ["$relay_url"] }
 address_lookup = false
+local_discovery = false
 bind = "0.0.0.0:7777"
 
 [[folders]]

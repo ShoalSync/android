@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -19,10 +20,24 @@ import kotlinx.coroutines.launch
 class SyncService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** Lets multicast through Wi-Fi power saving, so local discovery (ADR 0029) works. */
+    private var multicast: WifiManager.MulticastLock? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        if (!Peer.settings.localDiscovery) {
+            multicast?.release()
+            multicast = null
+        } else if (multicast == null) {
+            multicast = getSystemService(WifiManager::class.java)
+                ?.createMulticastLock("tidefell")
+                ?.apply {
+                    setReferenceCounted(false)
+                    acquire()
+                }
+        }
         scope.launch {
             runCatching { Peer.start() }.onFailure { Log.e(TAG, "starting the peer failed", it) }
         }
@@ -40,6 +55,8 @@ class SyncService : Service() {
     }
 
     override fun onDestroy() {
+        multicast?.release()
+        multicast = null
         scope.cancel()
         super.onDestroy()
     }
