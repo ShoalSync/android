@@ -46,6 +46,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = vie
         NetworkSettings(model)
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
         LimitSettings(model)
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        ReportSettings(model)
         folders.forEach { folder ->
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             FolderSettings(model, folder, errors[folder.id])
@@ -112,6 +114,30 @@ private fun LimitSettings(model: SettingsViewModel) {
     CheckRow("Limit devices on this network too", limits.limitLocal) { on -> model.setLimits(limits.copy(limitLocal = on)) }
     val wanted = limits.copy(uploadKib = upload.toLongOrNull() ?: 0, downloadKib = download.toLongOrNull() ?: 0)
     TextButton(enabled = wanted != limits, onClick = { model.setLimits(wanted) }) { Text("Save") }
+    problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+}
+
+@Composable
+private fun ReportSettings(model: SettingsViewModel) {
+    val saved by model.reportUrl.collectAsStateWithLifecycle()
+    val problem by model.reportUrlProblem.collectAsStateWithLifecycle()
+    var url by remember(saved) { mutableStateOf(saved) }
+    Text("Crash reports", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Where a crash is reported: an issue tracker's issues page. Reporting opens a new issue there, filled in for " +
+            "you to read and send. Leave empty to share the report instead.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    OutlinedTextField(
+        value = url,
+        onValueChange = { url = it },
+        label = { Text("Issue tracker") },
+        placeholder = { Text("https://github.com/owner/repo/issues") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    TextButton(enabled = url.trim() != saved, onClick = { model.setReportUrl(url) }) { Text("Save") }
     problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 

@@ -4,4 +4,6 @@
 <paths>
     <files-path name="app" path="folders/" />
     <external-path name="storage" path="." />
+    <!-- Diagnostics bundles to share (ADR 0030). -->
+    <cache-path name="diagnostics" path="diagnostics/" />
 </paths>

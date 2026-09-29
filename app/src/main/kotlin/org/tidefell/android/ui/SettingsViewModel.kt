@@ -72,6 +72,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) { it.folders() }
 
+    private val reportUrlState = MutableStateFlow(settings.reportUrl)
+    private val reportUrlError = MutableStateFlow<String?>(null)
+
+    /** Where crash reports are filed (ADR 0030); empty for the default. */
+    val reportUrl: StateFlow<String> = reportUrlState
+
+    /** Why the last report URL was not kept, if it was not. */
+    val reportUrlProblem: StateFlow<String?> = reportUrlError
+
+    /** Keeps [url] if it is an issues page over HTTP or HTTPS without a query, or empty. */
+    fun setReportUrl(url: String) {
+        val trimmed = url.trim()
+        val valid = trimmed.isEmpty() ||
+            (Regex("^https?://[^/\\s?#]+(/[^\\s?#]*)?$").matches(trimmed))
+        reportUrlError.value = if (valid) null else "Enter the tracker's issues page, such as https://github.com/owner/repo/issues"
+        if (valid) {
+            settings.reportUrl = trimmed
+            reportUrlState.value = trimmed
+        }
+    }
+
     /** The last error of an action on a folder, by folder ID. */
     val errors: StateFlow<Map<String, String>> = errorsByFolder
 

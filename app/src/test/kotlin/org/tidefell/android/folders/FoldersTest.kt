@@ -28,6 +28,8 @@ class FoldersTest {
         confirmedCopies = confirmed,
         onlyHere = onlyHere,
         pinned = false,
+        author = "ab".repeat(32),
+        authorName = "Laptop",
     )
 
     @Test

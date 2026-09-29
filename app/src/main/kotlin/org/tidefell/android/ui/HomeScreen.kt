@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,6 +68,7 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
         is Page.RecycleBin -> p.folder
         is Page.History -> p.folder
         is Page.Conflict -> p.folder
+        is Page.Activity -> p.folder
         else -> null
     }
     val folder = folders.firstOrNull { it.id == folderId }
@@ -75,6 +77,8 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
         Page.Folders -> "Tidefell"
         Page.Settings -> "Settings"
         Page.AddFolder -> "Add a folder"
+        Page.Status -> "Status"
+        is Page.Activity -> "Activity"
         is Page.Files -> folder?.let(Peer::folderName) ?: ""
         is Page.RecycleBin -> "Recycle bin"
         is Page.History -> "Earlier versions"
@@ -86,7 +90,10 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
                 title = { Text(title) },
                 actions = {
                     when (page) {
-                        Page.Folders -> TextButton(onClick = { model.go(Page.Settings) }) { Text("Settings") }
+                        Page.Folders -> {
+                            TextButton(onClick = { model.go(Page.Status) }) { Text("Status") }
+                            TextButton(onClick = { model.go(Page.Settings) }) { Text("Settings") }
+                        }
                         is Page.Files -> {
                             if (folder != null) {
                                 TextButton(onClick = { if (folder.paused) model.resume(folder.id) else model.pause(folder.id) }) {
@@ -114,6 +121,8 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
             when {
                 node == null -> CircularProgressIndicator(Modifier.padding(24.dp))
                 page == Page.Settings -> SettingsScreen()
+                page == Page.Status -> StatusPage()
+                page is Page.Activity && folder != null -> ActivityPage(model)
                 page == Page.AddFolder -> AddFolderScreen(
                     offer = null,
                     onDone = { model.go(Page.Files(it.id)) },
@@ -163,7 +172,7 @@ private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
                 headlineContent = { Text(Peer.folderName(folder)) },
                 supportingContent = {
                     val notes = listOfNotNull(
-                        "Paused".takeIf { folder.paused },
+                        folderStateText(folder),
                         "${folder.conflicts} files need a decision".takeIf { folder.conflicts > 0UL },
                     ).joinToString(" · ")
                     val summary = if (choice == SyncChoice.FILES_ON_DEMAND) choice.title else "${folder.path}\n${choice.title}"
@@ -180,7 +189,10 @@ private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
 private fun FileList(model: HomeViewModel, folder: Folder) {
     val context = LocalContext.current
     val files by model.files.collectAsStateWithLifecycle()
+    val problems by model.problems.collectAsStateWithLifecycle()
+    val status by model.status.collectAsStateWithLifecycle()
     var acting by remember { mutableStateOf<File?>(null) }
+    var showProblems by rememberSaveable { mutableStateOf(false) }
     val inAppStorage = PhoneFolders.inAppStorage(folder)
     if (folder.paused) {
         Text(
@@ -188,6 +200,24 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(16.dp),
         )
+    } else {
+        Text(folderStateText(folder), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp))
+    }
+    Row(Modifier.padding(horizontal = 8.dp)) {
+        TextButton(onClick = { model.go(Page.Activity(folder.id)) }) { Text("Activity") }
+        if (problems.isNotEmpty()) {
+            TextButton(onClick = { showProblems = !showProblems }) {
+                Text(if (showProblems) "Hide problems" else "${problems.size} files with problems")
+            }
+        }
+    }
+    if (showProblems) {
+        problems.forEach { problem ->
+            ListItem(
+                headlineContent = { Text(problem.path) },
+                supportingContent = { Text("${problemText(problem)}\n${problem.message}", color = MaterialTheme.colorScheme.error) },
+            )
+        }
     }
     if (files.isEmpty()) Text("No files yet.", Modifier.padding(24.dp))
     LazyColumn {
@@ -202,7 +232,7 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
                             file.pinned -> "Kept on this phone"
                             file.onDisk -> "On this phone"
                             else -> "On your other devices"
-                        },
+                        } + if (file.author == status?.device) "" else " · by ${file.authorName}",
                         color = if (file.conflicts > 0u) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified,
                     )
                 },
@@ -294,6 +324,26 @@ private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDism
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
     )
+}
+
+/** What this phone applied to a folder, newest first, and who made each change (ADR 0030). */
+@Composable
+private fun ActivityPage(model: HomeViewModel) {
+    val activity by model.activity.collectAsStateWithLifecycle()
+    if (activity.isEmpty()) {
+        Text("Nothing has changed yet.", Modifier.padding(24.dp))
+        return
+    }
+    LazyColumn {
+        items(activity) { change ->
+            ListItem(
+                headlineContent = { Text(activityText(change)) },
+                supportingContent = {
+                    Text(DateUtils.getRelativeTimeSpanString(change.timeMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString())
+                },
+            )
+        }
+    }
 }
 
 /** Moves the files a full replica holds to this phone's recycle bin, after asking. */

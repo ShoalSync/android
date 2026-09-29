@@ -2,6 +2,7 @@ package org.tidefell.android.ui
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.clickable
@@ -32,12 +33,14 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 import kotlinx.coroutines.launch
+import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.ffi.Crash
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Version
 import org.tidefell.ffi.VersionKind
+import org.tidefell.ffi.crashReport
 
 /** The earlier versions of a file kept on this phone, any of which can be restored (ADR 0029). */
 @Composable
@@ -176,13 +179,23 @@ fun CrashNotice(model: HomeViewModel) {
     }
 }
 
-/** Shares the crash file's text, to send to whoever helps with the problem. */
+/**
+ * Reports a crash (ADR 0030): opens a new issue on the tracker, filled in with the report for the
+ * user to read and send, or, without a tracker, shares the report. Home directories are taken out.
+ */
 private fun report(context: Context, crash: Crash) {
-    val text = runCatching { File(crash.file).readText() }.getOrDefault(crash.message)
+    val report = runCatching {
+        crashReport(Peer.dataDir, crash.id, Peer.settings.reportUrl.ifEmpty { null })
+    }.getOrNull()
+    val url = report?.url
+    if (url != null) {
+        val view = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        if (runCatching { context.startActivity(view) }.isSuccess) return
+    }
     val send = Intent(Intent.ACTION_SEND)
         .setType("text/plain")
-        .putExtra(Intent.EXTRA_SUBJECT, "Tidefell crash report")
-        .putExtra(Intent.EXTRA_TEXT, text)
+        .putExtra(Intent.EXTRA_SUBJECT, report?.title ?: "Tidefell crash report")
+        .putExtra(Intent.EXTRA_TEXT, report?.body ?: crash.message)
     runCatching { context.startActivity(Intent.createChooser(send, "Report the crash")) }
 }
 

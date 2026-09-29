@@ -13,11 +13,13 @@ import kotlinx.coroutines.withContext
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.Removable
+import org.tidefell.ffi.Activity
 import org.tidefell.ffi.Crash
 import org.tidefell.ffi.DeviceStatus
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Node
+import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.Recycled
 import org.tidefell.ffi.Version
 
@@ -35,6 +37,16 @@ sealed interface Page {
 
     data object AddFolder : Page {
         override val parent: Page = Folders
+    }
+
+    /** This phone's connections, transfers, checks and diagnostics (ADR 0030). */
+    data object Status : Page {
+        override val parent: Page = Folders
+    }
+
+    /** What this phone applied to a folder, newest first (ADR 0030). */
+    data class Activity(val folder: String) : Page {
+        override val parent: Page = Files(folder)
     }
 
     data class Files(val folder: String) : Page {
@@ -79,6 +91,16 @@ class HomeViewModel : ViewModel() {
 
     val files: StateFlow<List<File>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         folderOf(current.value)?.let { node.files(it) } ?: emptyList()
+    }
+
+    /** The open folder's paths that failed to read, fetch, write or delete (ADR 0030). */
+    val problems: StateFlow<List<PathProblem>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+        (current.value as? Page.Files)?.let { node.pathProblems(it.folder) } ?: emptyList()
+    }
+
+    /** What this phone applied to the folder whose activity is open. */
+    val activity: StateFlow<List<Activity>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+        (current.value as? Page.Activity)?.let { node.activity(it.folder, ACTIVITY_SHOWN) } ?: emptyList()
     }
 
     val recycleBin: StateFlow<List<Recycled>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
@@ -241,10 +263,14 @@ class HomeViewModel : ViewModel() {
         is Page.RecycleBin -> page.folder
         is Page.History -> page.folder
         is Page.Conflict -> page.folder
+        is Page.Activity -> page.folder
         else -> null
     }
 
     private companion object {
         const val TAG = "HomeViewModel"
+
+        /** Changes shown on a folder's activity page. */
+        const val ACTIVITY_SHOWN = 200u
     }
 }

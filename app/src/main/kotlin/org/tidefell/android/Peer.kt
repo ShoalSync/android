@@ -166,6 +166,14 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean("limit_local", false)
         set(value) = prefs.edit().putBoolean("limit_local", value).apply()
 
+    /**
+     * The issue tracker crash reports are written up for: its issues page, such as
+     * `https://github.com/Tidefell/tidefell/issues`, or empty for the default (ADR 0030).
+     */
+    var reportUrl: String
+        get() = prefs.getString("report_url", "") ?: ""
+        set(value) = prefs.edit().putString("report_url", value.trim()).apply()
+
     fun limits(): Limits = Limits(
         upload = uploadKib.takeIf { it > 0 }?.let { (it * 1024).toULong() },
         download = downloadKib.takeIf { it > 0 }?.let { (it * 1024).toULong() },

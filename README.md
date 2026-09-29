@@ -74,8 +74,16 @@ access).
 - **Pause, speed and keeping files.** Syncing can be paused for a folder or the whole phone,
   upload and download speed limited, and files kept on the phone outside the space budget.
 - **Crashes.** Engine logs go to logcat and to files in the app's data, and crashes of the engine
-  or the app are recorded. The app says when Tidefell stopped, offers to start syncing again,
-  and shares the report (ADR 0030).
+  or the app are recorded. The app says when Tidefell stopped and offers to start syncing again.
+  *Report* writes the crash up as an issue, with home directories taken out: it opens a new issue
+  on the tracker set in Settings, filled in for the user to read and send, or shares the report
+  without one (ADR 0030).
+- **Status.** Each folder says what it is doing and lists files that failed to read, fetch, write
+  or delete, and files say which device made them. A folder's *Activity* lists what the phone
+  applied and who made each change. The *Status* page shows your devices and how they are
+  connected, what has been sent and received, and *Check this phone*: the engine's checks with
+  notifications, background use, battery optimisation and All files access. *Share diagnostics*
+  shows a diagnostics bundle, with names hashed, before sharing it (ADR 0030).
 
 ## Tests
 
@@ -89,7 +97,9 @@ there must reach the daemon, and move to the phone's recycle bin only after the 
 replica, confirms it, while nothing from the daemon is downloaded. Switched to two-way sync, the
 daemon's files arrive, and a file deleted on the phone stays on the daemon. The phone folder's
 documents root lists that file, and opening it there, or "Download to this phone", brings it back.
-CI runs it on every push.
+For ADR 0030 the phone must show the daemon connected, who made each file and what it applied;
+list a file it cannot read as a problem until it can; and write a recorded crash up for a tracker
+and into a diagnostics bundle without full IDs or paths. CI runs it on every push.
 
 ## Contributing
 

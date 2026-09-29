@@ -17,8 +17,14 @@ import org.junit.runner.RunWith
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.ffi.Operation
 import org.tidefell.ffi.Pairing
 import org.tidefell.ffi.PairingUpdate
+import org.tidefell.ffi.ProblemKind
+import org.tidefell.ffi.crashReport
+import org.tidefell.ffi.crashes
+import org.tidefell.ffi.dismissCrashes
+import org.tidefell.ffi.recordCrash
 
 /**
  * The exit criteria on an emulator against a real `tidefelld` on the host (see
@@ -35,6 +41,10 @@ import org.tidefell.ffi.PairingUpdate
  *
  * ADR 0028: the phone folder is a documents root listing only the daemon's files that are not on
  * the phone. Opening one there downloads it into the phone folder, as does "Download to this phone".
+ *
+ * ADR 0030: the phone shows the daemon connected and what it received, who made each file and
+ * what it applied; a file it cannot read is a problem until it can; and a recorded crash is
+ * written up for a tracker and goes into a diagnostics bundle without full IDs or paths.
  *
  * The host reads the pairing code from logcat and approves it with `tidefell pair`, and checks its
  * folders afterwards. The relay URL comes from the `tidefellRelay` instrumentation argument.
@@ -104,6 +114,50 @@ class ExitCriterionTest {
         eventually("the saved file is recorded") { node.files(photos.id).any { it.path == "from-android.txt" && it.onDisk } }
         eventually("the daemon is connected") { node.peers().isNotEmpty() }
         Log.i(TAG, "SAVED from-android.txt")
+
+        // ADR 0030: status, who made each file, and what the phone applied.
+        val daemon = node.peerStates().single { it.connected }
+        assertTrue("received the daemon's file", node.transfer().received > 0uL)
+        assertEquals(daemon.name, node.files(photos.id).single { it.path == "beach.jpg" }.authorName)
+        eventually("the activity log lists both files") {
+            val activity = node.activity(photos.id, 50u)
+            activity.any { it.path == "beach.jpg" && !it.local } && activity.any { it.path == "from-android.txt" && it.local }
+        }
+
+        // A file the phone cannot read is a problem until it can, and is not taken for deleted.
+        val photosDir = File(node.folders().single { it.id == photos.id }.path)
+        val locked = File(photosDir, "locked.txt").apply { writeText("secret") }
+        assertTrue(locked.setReadable(false, false))
+        node.scan(photos.id)
+        val problem = node.pathProblems(photos.id).single { it.path == "locked.txt" }
+        assertEquals(Operation.SCAN, problem.operation)
+        assertEquals(ProblemKind.PERMISSION_DENIED, problem.kind)
+        assertEquals(1uL, node.folders().single { it.id == photos.id }.problems)
+        assertTrue(locked.setReadable(true, true))
+        node.scan(photos.id)
+        assertTrue("cleared once it can be read", node.pathProblems(photos.id).isEmpty())
+        assertTrue(locked.delete())
+        node.scan(photos.id)
+
+        // A crash: reported as an issue for the tracker, and in a diagnostics bundle with names
+        // hashed and IDs shortened.
+        recordCrash(Peer.dataDir, "a test crash", "java.lang.IllegalStateException: test\n\tat ExitCriterionTest")
+        val crash = crashes(Peer.dataDir).last { !it.seen }
+        val report = crashReport(Peer.dataDir, crash.id, "https://example.org/issues")
+        assertEquals("Crash: a test crash", report.title)
+        assertTrue(report.url!!.startsWith("https://example.org/issues/new?title=Crash%3A%20a%20test%20crash"))
+        val bundle = node.diagnostics(File(context.cacheDir, "diagnostics").path, false, "{\"android_api\": 34}")
+        val names = bundle.entries.map { it.name }
+        for (name in listOf("summary.json", "status.json", "problems.json", "doctor.json", "crashes/${crash.id}")) {
+            assertTrue("$name in $names", name in names)
+        }
+        assertTrue(File(bundle.path).length() > 0)
+        val text = bundle.entries.joinToString("\n") { it.text }
+        assertFalse("no full device ID", text.contains(node.status().device))
+        assertFalse("no folder path", text.contains(Peer.foldersDir.path))
+        dismissCrashes(Peer.dataDir)
+        assertTrue(crashes(Peer.dataDir).all { it.seen })
+        Log.i(TAG, "DIAGNOSED status, problems, activity, crash report and bundle")
 
         // Camera, at a folder on the phone, with remove after backup. All files access is granted
         // the way a user would in Settings.
