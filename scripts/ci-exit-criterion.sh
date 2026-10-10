@@ -11,6 +11,7 @@ cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 relay_url="http://10.0.2.2:3340"
 pids=()
+# shellcheck disable=SC2329 # Called by the EXIT trap.
 cleanup() {
   for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
   echo "--- relay log ---"; cat "$work/relay.log" 2>/dev/null || true
