@@ -89,6 +89,10 @@ access).
 
 `./gradlew :app:testDebugUnitTest` runs the unit tests.
 
+`./gradlew :app:lintDebug` runs Android Lint and `scripts/detekt.sh` runs detekt with its formatting
+rules (ADR 0031). Both fail on any finding not in their baselines, `app/lint-baseline.xml` and
+`detekt-baseline.xml`; fix a new finding rather than adding it to a baseline.
+
 `scripts/ci-exit-criterion.sh` runs the exit criteria on an emulator: the app pairs with the
 pinned release's `tidefelld` on the host through a local iroh relay, joins one of its folders
 with files on demand, opens a file through the documents provider and saves one that syncs back.

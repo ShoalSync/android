@@ -27,6 +27,16 @@ android {
         }
     }
 
+    // Android Lint fails on any new warning; existing ones are in lint-baseline.xml (ADR 0031).
+    // The checks for newer releases are off: they ask the network, so a release upstream would
+    // fail a build that changed nothing.
+    lint {
+        baseline = file("lint-baseline.xml")
+        disable += setOf("AndroidGradlePluginVersion", "GradleDependency", "NewerVersionAvailable")
+        warningsAsErrors = true
+        abortOnError = true
+    }
+
     buildFeatures {
         compose = true
     }

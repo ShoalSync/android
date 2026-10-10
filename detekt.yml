@@ -1,0 +1,13 @@
+# detekt's defaults, with these changes (ADR 0031). Existing findings are in detekt-baseline.xml.
+style:
+  MaxLineLength:
+    maxLineLength: 140
+naming:
+  FunctionNaming:
+    # Compose names composable functions like types.
+    ignoreAnnotated: ["Composable"]
+formatting:
+  MaximumLineLength:
+    maxLineLength: 140
+  ArgumentListWrapping:
+    maxLineLength: 140

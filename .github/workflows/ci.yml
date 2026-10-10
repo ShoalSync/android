@@ -46,7 +46,11 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: scripts/fetch-ffi.sh
       - name: Build
-        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+        # Android Lint fails on any finding not in app/lint-baseline.xml (ADR 0031).
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug
+      - name: detekt
+        # With its formatting rules; existing findings are in detekt-baseline.xml.
+        run: scripts/detekt.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           retention-days: 7
