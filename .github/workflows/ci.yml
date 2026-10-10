@@ -47,6 +47,7 @@ jobs:
         run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
