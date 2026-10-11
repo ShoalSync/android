@@ -3,7 +3,8 @@
 # release's tidefelld on this host.
 #
 # Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
-# the ability to add 10.0.2.2 to the loopback interface (sudo). The emulator reaches the host's
+# the ability to add 10.0.2.2 to the loopback interface (sudo). Arguments are passed on to Gradle,
+# such as -PtidefellFfiLocalPath=<monorepo> to test a monorepo checkout. The emulator reaches the host's
 # loopback as 10.0.2.2; the alias lets the host use the same relay URL.
 set -euo pipefail
 
@@ -14,6 +15,8 @@ pids=()
 # shellcheck disable=SC2329 # Called by the EXIT trap.
 cleanup() {
   for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+  # Gone before the next run binds the same ports.
+  for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
   echo "--- relay log ---"; cat "$work/relay.log" 2>/dev/null || true
   echo "--- daemon log ---"; cat "$work/daemon.log" 2>/dev/null || true
   echo "--- approver log ---"; cat "$work/approver.log" 2>/dev/null || true
@@ -85,7 +88,7 @@ pids+=($!)
 
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.ExitCriterionTest \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url"
+  -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url" "$@"
 
 # The file saved on the emulator and the photo taken there reached the daemon, and the file
 # deleted on the phone is still on the daemon.

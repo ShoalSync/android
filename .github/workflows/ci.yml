@@ -138,7 +138,10 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: scripts/ci-exit-criterion.sh
+          # Each line runs in turn; ADR 0033's file names need a virtual FAT card (adb root).
+          script: |
+            scripts/ci-exit-criterion.sh
+            scripts/file-names.sh
 
   # Shell scripts and spelling (ADR 0031). The repository has no Nix files.
   shell-and-spelling:

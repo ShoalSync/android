@@ -3,7 +3,8 @@
 # fold together in shared storage, and a name a FAT volume refuses.
 #
 # Needs what scripts/ci-exit-criterion.sh needs, and an emulator image that allows `adb root`
-# (google_apis), to add a virtual SD card formatted as FAT.
+# (google_apis), to add a virtual SD card formatted as FAT. Arguments are passed on to Gradle,
+# such as -PtidefellFfiLocalPath=<monorepo>/bindings/android to test a monorepo checkout.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -13,6 +14,8 @@ pids=()
 # shellcheck disable=SC2329 # Called by the EXIT trap.
 cleanup() {
   for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+  # Gone before the next run binds the same ports.
+  for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
   adb shell sm set-virtual-disk false >/dev/null 2>&1 || true
   echo "--- daemon log ---"; cat "$work/daemon.log" 2>/dev/null || true
   echo "--- approver log ---"; cat "$work/approver.log" 2>/dev/null || true
@@ -106,7 +109,7 @@ status=0
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.FileNamesTest \
   -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url" \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellFatVolume="/storage/$volume" || status=$?
+  -Pandroid.testInstrumentationRunnerArguments.tidefellFatVolume="/storage/$volume" "$@" || status=$?
 
 # The daemon keeps both photos, as they were.
 echo "daemon's Names: $(cd "$work/Names" && for f in *; do printf '%s=%s ' "$f" "$(cat "$f")"; done)"
@@ -114,5 +117,15 @@ if [ "$(cat "$work/Names/Photo.jpg" 2>/dev/null)" != "upper" ] || [ "$(cat "$wor
   echo "the daemon's photos changed" >&2
   status=1
 fi
-[ "$status" = 0 ] && echo "file names: both photos survived and a:b.txt is a problem"
+# The rename made on the phone reached the daemon.
+renamed=false
+for _ in $(seq 1 30); do
+  [ "$(cat "$work/Card/a-b.txt" 2>/dev/null)" = "colon" ] && [ ! -e "$work/Card/a:b.txt" ] && renamed=true && break
+  sleep 1
+done
+if ! $renamed; then
+  echo "the daemon did not get the rename of a:b.txt" >&2
+  status=1
+fi
+[ "$status" = 0 ] && echo "file names: both photos survived, a:b.txt was a problem, and its rename reached the daemon"
 exit "$status"

@@ -208,6 +208,12 @@ class HomeViewModel : ViewModel() {
         "Syncing again."
     }
 
+    /** Renames [from] to [to] on all devices: offered for a name this phone cannot store (ADR 0033). */
+    fun rename(folder: String, from: String, to: String) = act {
+        Peer.start().rename(folder, from, to)
+        "Renamed $from to $to on all your devices."
+    }
+
     /** Keeps [path] on this phone, fetched and never removed to save space (ADR 0029). */
     fun pin(folder: String, path: String) = act {
         Peer.start().pin(folder, path)

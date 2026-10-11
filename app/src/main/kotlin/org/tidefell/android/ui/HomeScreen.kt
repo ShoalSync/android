@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -44,6 +45,9 @@ import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
+import org.tidefell.ffi.Operation
+import org.tidefell.ffi.PathProblem
+import org.tidefell.ffi.ProblemKind
 import org.tidefell.ffi.Recycled
 
 /** Folders, their files and recycle bins, settings, and adding folders. */
@@ -193,6 +197,7 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
     val status by model.status.collectAsStateWithLifecycle()
     var acting by remember { mutableStateOf<File?>(null) }
     var showProblems by rememberSaveable { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf<PathProblem?>(null) }
     val inAppStorage = PhoneFolders.inAppStorage(folder)
     if (folder.paused) {
         Text(
@@ -216,8 +221,24 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
             ListItem(
                 headlineContent = { Text(problem.path) },
                 supportingContent = { Text("${problemText(problem)}\n${problem.message}", color = MaterialTheme.colorScheme.error) },
+                trailingContent = {
+                    // A name this phone cannot store can be renamed on all devices (ADR 0033).
+                    if (problem.kind == ProblemKind.NAME_NOT_ALLOWED && problem.operation == Operation.WRITE) {
+                        TextButton(onClick = { renaming = problem }) { Text("Rename") }
+                    }
+                },
             )
         }
+    }
+    renaming?.let { problem ->
+        RenameDialog(
+            path = problem.path,
+            onRename = { to ->
+                model.rename(folder.id, problem.path, to)
+                renaming = null
+            },
+            onDismiss = { renaming = null },
+        )
     }
     if (files.isEmpty()) Text("No files yet.", Modifier.padding(24.dp))
     LazyColumn {
@@ -441,4 +462,24 @@ private fun RecycleBin(model: HomeViewModel, folder: Folder) {
             dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text("Cancel") } },
         )
     }
+}
+
+/** Asks for a new name for [path], which this phone cannot store, to use on all devices (ADR 0033). */
+@Composable
+private fun RenameDialog(path: String, onRename: (String) -> Unit, onDismiss: () -> Unit) {
+    var to by remember { mutableStateOf(path) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename on all devices") },
+        text = {
+            Column {
+                Text("This phone cannot store this name. Choose one every device can keep.")
+                OutlinedTextField(value = to, onValueChange = { to = it }, singleLine = true)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onRename(to.trim()) }, enabled = to.isNotBlank() && to.trim() != path) { Text("Rename") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

@@ -120,8 +120,12 @@ class FileNamesTest {
         val photos = contents(namesDir)
         assertEquals("both photos on the phone: $photos", setOf("upper", "lower"), photos.values.toSet())
         assertEquals(2, photos.size)
-        val listed = node.files(names.id).map { it.path }.toSet()
-        assertTrue("both paths listed: $listed", listed.containsAll(setOf("Photo.jpg", "photo.jpg")))
+        // Listed where they are on the phone: one under its own name, the other as a conflict
+        // copy, while every other device keeps both names (the host checks the daemon's).
+        val listed = node.files(names.id).map { it.path }.filter { it.endsWith(".jpg") }
+        assertEquals("both listed: $listed", 2, listed.size)
+        assertTrue("one keeps its name: $listed", listed.any { it == "Photo.jpg" || it == "photo.jpg" })
+        assertTrue("one is a conflict copy: $listed", listed.any { it.contains("(conflict ") })
         assertTrue("no problems: ${node.pathProblems(names.id)}", node.pathProblems(names.id).isEmpty())
 
         // The name FAT refuses is listed, as not on the phone, with a problem saying why.
@@ -131,6 +135,12 @@ class FileNamesTest {
         assertEquals("a:b.txt", problem.path)
         assertEquals(ProblemKind.NAME_NOT_ALLOWED, problem.kind)
         Log.i(TAG, "NAMES survived and a:b.txt is a problem")
+
+        // Renamed on all devices to a name the card can keep, it arrives and the problem goes.
+        node.rename(card.id, "a:b.txt", "a-b.txt")
+        eventually("a-b.txt arrives on the card") { File(cardDir, "a-b.txt").readText() == "colon" }
+        eventually("the problem goes") { node.pathProblems(card.id).isEmpty() }
+        Log.i(TAG, "RENAMED a:b.txt to a-b.txt")
     }
 
     companion object {
