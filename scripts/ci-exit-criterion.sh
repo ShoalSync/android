@@ -84,6 +84,7 @@ adb logcat -c
 pids+=($!)
 
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.ExitCriterionTest \
   -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url"
 
 # The file saved on the emulator and the photo taken there reached the daemon, and the file
