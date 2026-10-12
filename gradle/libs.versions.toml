@@ -2,7 +2,7 @@
 # The monorepo release this app is built against (ADR 0014). Bump deliberately.
 tidefell = "0.15.0"
 agp = "9.4.1"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 coroutines = "1.11.0"
 jna = "5.19.1"
 compose-bom = "2026.09.00"
