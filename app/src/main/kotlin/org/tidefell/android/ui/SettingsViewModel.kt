@@ -113,6 +113,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     override fun setRetention(folder: String, days: UInt) = act(folder) { Peer.start().setRetention(folder, days) }
 
+    override fun rebuild(folder: String) = act(folder) { Peer.start().rebuildFolder(folder) }
+
     /** Runs [action] on [Dispatchers.IO] and records its error, if any, against [folder]. */
     private fun act(folder: String, action: suspend () -> Unit) {
         viewModelScope.launch {

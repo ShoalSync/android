@@ -1,6 +1,6 @@
 [versions]
 # The monorepo release this app is built against (ADR 0014). Bump deliberately.
-tidefell = "0.15.0"
+tidefell = "0.16.0"
 agp = "9.4.1"
 kotlin = "2.4.21"
 coroutines = "1.11.0"

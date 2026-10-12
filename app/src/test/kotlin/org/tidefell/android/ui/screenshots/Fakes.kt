@@ -27,6 +27,7 @@ import org.tidefell.ffi.Operation
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
 import org.tidefell.ffi.ProblemKind
+import org.tidefell.ffi.Rebuild
 import org.tidefell.ffi.Recycled
 import org.tidefell.ffi.Transfer
 import org.tidefell.ffi.Version
@@ -65,6 +66,7 @@ object Sample {
         error: String? = null,
         recycledFiles: ULong = 0u,
         onlyHere: ULong = 0u,
+        rebuild: Rebuild? = null,
     ) = Folder(
         id = id,
         path = path,
@@ -86,6 +88,7 @@ object Sample {
         lastScanMs = minutesAgo(2),
         peers = emptyList(),
         problems = problems,
+        rebuild = rebuild,
     )
 
     /** The camera folder, backed up only. */
@@ -311,6 +314,7 @@ class FakeSettings : SettingsModel {
     override fun syncNow() = Unit
     override fun setChoice(folder: Folder, choice: SyncChoice) = Unit
     override fun setRetention(folder: String, days: UInt) = Unit
+    override fun rebuild(folder: String) = Unit
 }
 
 class FakeStatus : StatusModel {

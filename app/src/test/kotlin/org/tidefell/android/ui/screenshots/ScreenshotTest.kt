@@ -137,6 +137,27 @@ class ScreenshotTest {
         capture("06-folders-message")
     }
 
+    @Test
+    fun rebuilding() {
+        home(
+            FakeHome().apply {
+                folders.value = listOf(
+                    Sample.camera,
+                    Sample.documents.copy(
+                        state = org.tidefell.ffi.FolderState.REBUILDING,
+                        rebuild = org.tidefell.ffi.Rebuild(
+                            Sample.minutesAgo(10),
+                            "its metadata database was damaged",
+                            null,
+                            emptyList(),
+                        ),
+                    ),
+                )
+            },
+        )
+        capture("07-folders-rebuilding")
+    }
+
     // A folder's files.
 
     private fun documents() = FakeHome(Page.Files(Sample.documents.id))
@@ -364,6 +385,17 @@ class ScreenshotTest {
         home(FakeHome(Page.Settings), settings = FakeSettings().apply { folders.value = listOf(Sample.camera) })
         click("Remove after backup")
         capture("62-settings-remove-after-backup")
+    }
+
+    @Test
+    fun settingsRebuild() {
+        tall()
+        val rebuilt = Sample.documents.copy(
+            rebuild = org.tidefell.ffi.Rebuild(Sample.minutesAgo(300), "it was asked for", Sample.minutesAgo(240), emptyList()),
+        )
+        home(FakeHome(Page.Settings), settings = FakeSettings().apply { folders.value = listOf(rebuilt) })
+        click("Rebuild this folder")
+        capture("63-settings-rebuild")
     }
 
     // Status.

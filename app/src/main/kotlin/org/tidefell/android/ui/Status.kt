@@ -21,6 +21,11 @@ fun folderStateText(folder: Folder): String {
         FolderState.SCANNING -> "Looking for changes"
         FolderState.SYNCING -> "Syncing"
         FolderState.PAUSED -> "Paused"
+        // Its metadata is started over (ADR 0034): files here are matched to what a device sends.
+        FolderState.REBUILDING -> {
+            val waitingFor = if (folder.rebuild?.waitingFor.isNullOrEmpty()) "a device sharing it to connect" else "your other devices"
+            "Rebuilding: waiting for $waitingFor"
+        }
         FolderState.ERROR -> "Not syncing: ${folder.error ?: "an error"}"
     }
     val pending = if (folder.pendingFiles > 0UL && folder.state != FolderState.ERROR) {

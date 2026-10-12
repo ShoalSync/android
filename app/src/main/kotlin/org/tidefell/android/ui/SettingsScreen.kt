@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -204,6 +205,7 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
             style = MaterialTheme.typography.bodySmall,
         )
     }
+    RebuildSettings(model, folder)
     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
     if (confirmRemoving) {
@@ -213,6 +215,42 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
                 model.setChoice(folder, SyncChoice.REMOVE_AFTER_BACKUP)
             },
             onDismiss = { confirmRemoving = false },
+        )
+    }
+}
+
+/** When and why the folder's metadata was last started over, and starting it over (ADR 0034). */
+@Composable
+private fun RebuildSettings(model: SettingsModel, folder: Folder) {
+    var confirmRebuilding by rememberSaveable { mutableStateOf(false) }
+    folder.rebuild?.let { rebuild ->
+        val at = DateUtils.getRelativeTimeSpanString(
+            rebuild.finishedMs ?: rebuild.startedMs,
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+        )
+        val done = if (rebuild.finishedMs == null) "Rebuilding since $at" else "Rebuilt $at"
+        Text("$done, as ${rebuild.reason}.", style = MaterialTheme.typography.bodySmall)
+    }
+    TextButton(onClick = { confirmRebuilding = true }) { Text("Rebuild this folder") }
+    if (confirmRebuilding) {
+        AlertDialog(
+            onDismissRequest = { confirmRebuilding = false },
+            title = { Text("Rebuild this folder?") },
+            text = {
+                Text(
+                    "Tidefell starts this folder's records over: the files on this phone are matched to what your " +
+                        "other devices send. Files, the recycle bin and earlier versions are kept. Only needed if " +
+                        "the folder seems wrong; a damaged record is rebuilt by itself.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRebuilding = false
+                    model.rebuild(folder.id)
+                }) { Text("Rebuild") }
+            },
+            dismissButton = { TextButton(onClick = { confirmRebuilding = false }) { Text("Cancel") } },
         )
     }
 }

@@ -81,6 +81,9 @@ interface SettingsModel {
     fun syncNow()
     fun setChoice(folder: Folder, choice: SyncChoice)
     fun setRetention(folder: String, days: UInt)
+
+    /** Starts the folder's metadata over (ADR 0034). */
+    fun rebuild(folder: String)
 }
 
 /** The status page. */
