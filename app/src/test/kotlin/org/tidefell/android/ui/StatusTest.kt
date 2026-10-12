@@ -23,6 +23,13 @@ class StatusTest {
     }
 
     @Test
+    fun one_file_is_not_files() {
+        assertEquals("1 file", files(1))
+        assertEquals("0 files", files(0))
+        assertEquals("2 files", files(2UL.toLong()))
+    }
+
+    @Test
     fun problems_say_what_failed() {
         val problem = PathProblem("a.txt", Operation.WRITE, ProblemKind.PERMISSION_DENIED, "denied", 0, 2u)
         assertEquals("Write: permission denied", problemText(problem))

@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.io.File
 import kotlinx.coroutines.launch
 import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
@@ -41,10 +40,11 @@ import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Version
 import org.tidefell.ffi.VersionKind
 import org.tidefell.ffi.crashReport
+import java.io.File
 
 /** The earlier versions of a file kept on this phone, any of which can be restored (ADR 0029). */
 @Composable
-fun HistoryPage(model: HomeViewModel, folder: Folder, path: String) {
+fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val versions by model.versions.collectAsStateWithLifecycle()
@@ -73,7 +73,13 @@ fun HistoryPage(model: HomeViewModel, folder: Folder, path: String) {
         AlertDialog(
             onDismissRequest = { restoring = null },
             title = { Text("Restore this version?") },
-            text = { Text("$path changes back to the version modified ${relative(version.modifiedMs)} on all your devices. The current one is kept as an earlier version.") },
+            text = {
+                Text(
+                    "$path changes back to the version modified ${relative(
+                        version.modifiedMs
+                    )} on all your devices. The current one is kept as an earlier version."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     model.restoreVersion(folder.id, path, version)
@@ -94,7 +100,7 @@ fun HistoryPage(model: HomeViewModel, folder: Folder, path: String) {
  * time and size, to open and compare, keep one, keep both, or decide later.
  */
 @Composable
-fun ConflictPage(model: HomeViewModel, folder: Folder, path: String, onLater: () -> Unit) {
+fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val versions by model.versions.collectAsStateWithLifecycle()
@@ -155,7 +161,7 @@ fun ConflictPage(model: HomeViewModel, folder: Folder, path: String, onLater: ()
  * the option to start syncing again, or before the last start, with the option to report it.
  */
 @Composable
-fun CrashNotice(model: HomeViewModel) {
+fun CrashNotice(model: HomeModel) {
     val context = LocalContext.current
     val crashed by model.crashed.collectAsStateWithLifecycle()
     val crashes by model.crashes.collectAsStateWithLifecycle()
@@ -200,7 +206,7 @@ private fun report(context: Context, crash: Crash) {
 }
 
 /** Opens [version] of [path] read-only in another app. */
-private suspend fun open(context: Context, model: HomeViewModel, folder: Folder, path: String, version: Version) {
+private suspend fun open(context: Context, model: HomeModel, folder: Folder, path: String, version: Version) {
     val uri = runCatching {
         when {
             version.kind != VersionKind.CURRENT ->

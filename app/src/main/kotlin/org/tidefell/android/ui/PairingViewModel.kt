@@ -16,7 +16,7 @@ import org.tidefell.ffi.PairingUpdate
  * Pairing this phone (ADR 0015). The pairing outlives the screen's configuration changes, so
  * rotating the phone keeps the code on screen instead of starting over.
  */
-class PairingViewModel : ViewModel() {
+class PairingViewModel : ViewModel(), PairingModel {
     sealed interface Step {
         data object Starting : Step
         data class ShowCode(val code: String) : Step
@@ -29,14 +29,14 @@ class PairingViewModel : ViewModel() {
     private var pairing: Pairing? = null
     private var job: Job? = null
 
-    val step: StateFlow<Step> = current
+    override val step: StateFlow<Step> = current
 
     init {
         start()
     }
 
     /** Starts over with a new code. */
-    fun retry() = start()
+    override fun retry() = start()
 
     private fun start() {
         job?.cancel()

@@ -31,6 +31,9 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
   `crates/ffi` in the monorepo first ([ADR 0004](https://github.com/tidefell/tidefell/blob/main/docs/adr/0004-android-ffi.md)).
 - For FFI development, set the `tidefellFfiLocalPath` Gradle property to a local monorepo
   checkout instead of editing the pin.
+- **Screens:** a composable takes its screen's model interface (`ui/Models.kt`), not the view
+  model, so screenshot tests can draw it with fixed data. A new screen or state gets a
+  screenshot test; see the README.
 - **Commits:** Conventional Commits; see [CONTRIBUTING.md](https://github.com/tidefell/tidefell/blob/main/CONTRIBUTING.md).
 
 ## Read first

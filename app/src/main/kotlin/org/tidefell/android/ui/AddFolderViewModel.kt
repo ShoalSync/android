@@ -3,23 +3,21 @@ package org.tidefell.android.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import java.io.File
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
+import java.io.File
 
 /**
  * Adding a folder (ADR 0025): a new one at a folder on the phone, or [offer], a folder shared
  * from another device, either on the phone or in app storage with files on demand.
  */
-class AddFolderViewModel(application: Application) : AndroidViewModel(application) {
+class AddFolderViewModel(application: Application) : AndroidViewModel(application), AddFolderModel {
     sealed interface Step {
         /** Where the folder lives: only asked when joining, where app storage is an option. */
         data object Place : Step
@@ -42,7 +40,7 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
     private val current = MutableStateFlow<Step>(Step.Access)
     private var offer: FolderOffer? = null
 
-    val step: StateFlow<Step> = current
+    override val step: StateFlow<Step> = current
 
     private var started = false
 
@@ -50,7 +48,7 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
      * Begins adding a new folder, or joining [offer]. Does nothing if already begun, so a
      * rotation keeps the step, unless [again].
      */
-    fun start(offer: FolderOffer?, again: Boolean = false) {
+    override fun start(offer: FolderOffer?, again: Boolean) {
         if (started && !again) return
         started = true
         this.offer = offer
@@ -58,29 +56,29 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /** Forgets this visit, so the next one starts at the beginning. */
-    fun reset() {
+    override fun reset() {
         started = false
     }
 
     /** Joins the offered folder in app storage, with files on demand. */
-    fun useAppStorage() = finish { PhoneFolders.join(offer!!, null, SyncChoice.FILES_ON_DEMAND) }
+    override fun useAppStorage() = finish { PhoneFolders.join(offer!!, null, SyncChoice.FILES_ON_DEMAND) }
 
     /** Continues to picking a folder on the phone. */
-    fun usePhoneFolder() {
+    override fun usePhoneFolder() {
         current.value = pickOrAccess()
     }
 
     /** Called when the user comes back from the system's access screen. */
-    fun accessChanged() {
+    override fun accessChanged() {
         if (current.value == Step.Access && PhoneStorage.hasAccess()) current.value = pick(null)
     }
 
-    fun open(dir: File?) {
+    override fun open(dir: File?) {
         current.value = pick(dir)
     }
 
     /** Goes up one folder, or back to the starting places; false if already there. */
-    fun up(): Boolean {
+    override fun up(): Boolean {
         val step = current.value as? Step.Pick ?: return false
         val dir = step.dir ?: return false
         val place = step.places.firstOrNull { it.dir.canonicalFile == dir.canonicalFile }
@@ -88,11 +86,11 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
         return true
     }
 
-    fun choose(dir: File) {
+    override fun choose(dir: File) {
         current.value = Step.Choose(dir)
     }
 
-    fun add(dir: File, choice: SyncChoice) = finish {
+    override fun add(dir: File, choice: SyncChoice) = finish {
         val offer = offer
         if (offer == null) PhoneFolders.create(dir, choice) else PhoneFolders.join(offer, dir, choice)
     }

@@ -37,7 +37,7 @@ import org.tidefell.ffi.Folder
 
 /** When phone folders sync, and each folder's sync choice and recycle bin on this phone. */
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = viewModel()) {
+fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsModel = viewModel<SettingsViewModel>()) {
     val folders by model.folders.collectAsStateWithLifecycle()
     val errors by model.errors.collectAsStateWithLifecycle()
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -56,7 +56,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsViewModel = vie
 }
 
 @Composable
-private fun BackgroundSettings(model: SettingsViewModel, hasPhoneFolders: Boolean) {
+private fun BackgroundSettings(model: SettingsModel, hasPhoneFolders: Boolean) {
     val background by model.background.collectAsStateWithLifecycle()
     Text("Background sync", style = MaterialTheme.typography.titleMedium)
     Text(
@@ -71,7 +71,7 @@ private fun BackgroundSettings(model: SettingsViewModel, hasPhoneFolders: Boolea
 }
 
 @Composable
-private fun NetworkSettings(model: SettingsViewModel) {
+private fun NetworkSettings(model: SettingsModel) {
     val localDiscovery by model.localDiscovery.collectAsStateWithLifecycle()
     Text("Network", style = MaterialTheme.typography.titleMedium)
     CheckRow("Find my devices on this network", localDiscovery, model::setLocalDiscovery)
@@ -82,7 +82,7 @@ private fun NetworkSettings(model: SettingsViewModel) {
 }
 
 @Composable
-private fun LimitSettings(model: SettingsViewModel) {
+private fun LimitSettings(model: SettingsModel) {
     val limits by model.limits.collectAsStateWithLifecycle()
     val problem by model.limitsProblem.collectAsStateWithLifecycle()
     var upload by remember(limits) { mutableStateOf(limits.uploadKib.takeIf { it > 0 }?.toString().orEmpty()) }
@@ -118,7 +118,7 @@ private fun LimitSettings(model: SettingsViewModel) {
 }
 
 @Composable
-private fun ReportSettings(model: SettingsViewModel) {
+private fun ReportSettings(model: SettingsModel) {
     val saved by model.reportUrl.collectAsStateWithLifecycle()
     val problem by model.reportUrlProblem.collectAsStateWithLifecycle()
     var url by remember(saved) { mutableStateOf(saved) }
@@ -150,7 +150,7 @@ private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
 }
 
 @Composable
-private fun FolderSettings(model: SettingsViewModel, folder: Folder, error: String?) {
+private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?) {
     val context = LocalContext.current
     var days by remember(folder.id, folder.retentionDays) { mutableStateOf(folder.retentionDays.toString()) }
     var confirmRemoving by rememberSaveable { mutableStateOf(false) }
@@ -193,13 +193,14 @@ private fun FolderSettings(model: SettingsViewModel, folder: Folder, error: Stri
         val next = folder.nextPurgeMs?.let {
             " The next is removed " + DateUtils.getRelativeTimeSpanString(it, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS) + "."
         }.orEmpty()
-        "${folder.recycledFiles} files in the recycle bin, $size.$next"
+        "${files(folder.recycledFiles.toLong())} in the recycle bin, $size.$next"
     }
     Text(summary, style = MaterialTheme.typography.bodyMedium)
     if (folder.onlyHere > 0UL) {
         // ADR 0022: these have no copy on a device that keeps everything yet.
         Text(
-            "${folder.onlyHere} files made on this phone are not on a device that keeps everything, such as a NAS, yet.",
+            "${files(folder.onlyHere.toLong())} made on this phone ${if (folder.onlyHere == 1UL) "is" else "are"} not on a " +
+                "device that keeps everything, such as a NAS, yet.",
             style = MaterialTheme.typography.bodySmall,
         )
     }

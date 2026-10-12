@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.roborazzi)
 }
 
 val ffiVersion: String = libs.versions.tidefell.get()
@@ -41,6 +42,11 @@ android {
         compose = true
     }
 
+    // Screenshot tests render every screen on the JVM with Robolectric (CONVENTIONS.md).
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     packaging {
         // The emulator test ABI is enough while developing: -Ptidefell.abis=x86_64 on the AAR.
         jniLibs.useLegacyPackaging = false
@@ -69,6 +75,14 @@ dependencies {
     implementation(libs.work.runtime)
 
     testImplementation(libs.junit)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
@@ -85,3 +99,9 @@ val checkFfi by tasks.registering {
     }
 }
 tasks.named("preBuild") { dependsOn(checkFfi) }
+
+// Reference screenshots live beside the tests and are compared on every CI run:
+// `./gradlew :app:recordRoborazziDebug` writes them after a deliberate change to a screen.
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
+}

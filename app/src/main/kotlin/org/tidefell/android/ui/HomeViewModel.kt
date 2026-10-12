@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -74,7 +77,7 @@ object Navigation {
 }
 
 /** Folders, the files and recycle bin of the open one, and what can be done to them. */
-class HomeViewModel : ViewModel() {
+class HomeViewModel : ViewModel(), HomeModel {
     private val current = MutableStateFlow<Page>(Page.Folders)
     private val messages = MutableStateFlow<String?>(null)
     private val changes = MutableStateFlow(0)
@@ -82,33 +85,38 @@ class HomeViewModel : ViewModel() {
     /** The running node, or null while it starts. */
     val node: StateFlow<Node?> = Peer.node
 
-    val page: StateFlow<Page> = current
+    override val started: StateFlow<Boolean> =
+        Peer.node.map { it != null }.stateIn(viewModelScope, SharingStarted.Eagerly, Peer.node.value != null)
+
+    override val page: StateFlow<Page> = current
 
     /** A result or error to show once. */
-    val message: StateFlow<String?> = messages
+    override val message: StateFlow<String?> = messages
 
-    val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) { it.folders() }
+    override val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) {
+        it.folders()
+    }
 
-    val files: StateFlow<List<File>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+    override val files: StateFlow<List<File>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         folderOf(current.value)?.let { node.files(it) } ?: emptyList()
     }
 
     /** The open folder's paths that failed to read, fetch, write or delete (ADR 0030). */
-    val problems: StateFlow<List<PathProblem>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+    override val problems: StateFlow<List<PathProblem>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         (current.value as? Page.Files)?.let { node.pathProblems(it.folder) } ?: emptyList()
     }
 
     /** What this phone applied to the folder whose activity is open. */
-    val activity: StateFlow<List<Activity>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+    override val activity: StateFlow<List<Activity>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         (current.value as? Page.Activity)?.let { node.activity(it.folder, ACTIVITY_SHOWN) } ?: emptyList()
     }
 
-    val recycleBin: StateFlow<List<Recycled>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+    override val recycleBin: StateFlow<List<Recycled>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         (current.value as? Page.RecycleBin)?.let { node.recycleBin(it.folder) } ?: emptyList()
     }
 
     /** The versions of the file whose history or conflict is open. */
-    val versions: StateFlow<List<Version>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+    override val versions: StateFlow<List<Version>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         when (val page = current.value) {
             is Page.History -> node.versions(page.folder, page.path)
             is Page.Conflict -> node.versions(page.folder, page.path)
@@ -117,13 +125,13 @@ class HomeViewModel : ViewModel() {
     }
 
     /** This phone, including whether syncing is paused on it. */
-    val status: StateFlow<DeviceStatus?> = viewModelScope.nodeState(null, refresh = changes) { it.status() }
+    override val status: StateFlow<DeviceStatus?> = viewModelScope.nodeState(null, refresh = changes) { it.status() }
 
     /** Why the node stopped by itself, if it did (ADR 0030). */
-    val crashed: StateFlow<String?> = Peer.crashed
+    override val crashed: StateFlow<String?> = Peer.crashed
 
     /** Crashes the user has not been told about yet (ADR 0030). */
-    val crashes: StateFlow<List<Crash>> = viewModelScope.nodeState(emptyList(), refresh = changes) {
+    override val crashes: StateFlow<List<Crash>> = viewModelScope.nodeState(emptyList(), refresh = changes) {
         org.tidefell.ffi.crashes(Peer.dataDir).filter { !it.seen }
     }
 
@@ -141,117 +149,117 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun go(page: Page) {
+    override fun go(page: Page) {
         current.value = page
     }
 
     /** Goes to the current page's parent; false on the top page. */
-    fun back(): Boolean {
+    override fun back(): Boolean {
         val parent = current.value.parent ?: return false
         current.value = parent
         return true
     }
 
-    fun show(message: String) {
+    override fun show(message: String) {
         messages.value = message
     }
 
-    fun messageShown() {
+    override fun messageShown() {
         messages.value = null
     }
 
     /** Files of the open folder that clean up would move to this phone's recycle bin. */
-    fun cleanUpCandidates(): List<File> = Removable.confirmed(files.value)
+    override fun cleanUpCandidates(): List<File> = Removable.confirmed(files.value)
 
-    fun cleanUp(folder: String, paths: List<String>) = act {
+    override fun cleanUp(folder: String, paths: List<String>) = act {
         val removed = PhoneFolders.removeHere(folder, paths)
-        "Moved $removed files to this phone's recycle bin. Your other devices keep them."
+        "Moved ${files(removed)} to this phone's recycle bin. Your other devices keep ${if (removed == 1) "it" else "them"}."
     }
 
-    fun removeHere(folder: String, path: String) = act {
+    override fun removeHere(folder: String, path: String) = act {
         PhoneFolders.removeHere(folder, listOf(path))
         "Moved $path to this phone's recycle bin. Your other devices keep it."
     }
 
-    fun download(folder: String, path: String) = act {
+    override fun download(folder: String, path: String) = act {
         PhoneFolders.download(folder, path)
         "Downloaded $path to this phone."
     }
 
-    fun deleteEverywhere(folder: String, path: String) = act {
+    override fun deleteEverywhere(folder: String, path: String) = act {
         Peer.start().delete(folder, path)
         "Deleted $path from all your devices. Each keeps it in its recycle bin."
     }
 
-    fun restore(folder: String, item: Recycled) = act {
+    override fun restore(folder: String, item: Recycled) = act {
         PhoneFolders.restore(folder, item)
         if (item.hereOnly) "Restored ${item.path} on this phone." else "Restored ${item.path} on all your devices."
     }
 
-    fun discard(folder: String, item: Recycled) = act {
+    override fun discard(folder: String, item: Recycled) = act {
         withContext(Dispatchers.IO) { Peer.start().discard(folder, item.entry) }
         "Deleted ${item.path} from this phone for good."
     }
 
-    fun emptyRecycleBin(folder: String) = act {
+    override fun emptyRecycleBin(folder: String) = act {
         val removed = withContext(Dispatchers.IO) { Peer.start().emptyRecycleBin(folder) }
-        "Deleted ${removed.size} files from this phone for good."
+        "Deleted ${files(removed.size)} from this phone for good."
     }
 
-    fun pause(folder: String?) = act {
+    override fun pause(folder: String?) = act {
         withContext(Dispatchers.IO) { Peer.start().pause(folder) }
         if (folder == null) "Syncing is paused on this phone." else "Syncing of this folder is paused."
     }
 
-    fun resume(folder: String?) = act {
+    override fun resume(folder: String?) = act {
         withContext(Dispatchers.IO) { Peer.start().resume(folder) }
         "Syncing again."
     }
 
     /** Renames [from] to [to] on all devices: offered for a name this phone cannot store (ADR 0033). */
-    fun rename(folder: String, from: String, to: String) = act {
+    override fun rename(folder: String, from: String, to: String) = act {
         Peer.start().rename(folder, from, to)
         "Renamed $from to $to on all your devices."
     }
 
     /** Keeps [path] on this phone, fetched and never removed to save space (ADR 0029). */
-    fun pin(folder: String, path: String) = act {
+    override fun pin(folder: String, path: String) = act {
         Peer.start().pin(folder, path)
         "$path stays on this phone."
     }
 
-    fun unpin(folder: String, path: String) = act {
+    override fun unpin(folder: String, path: String) = act {
         Peer.start().unpin(folder, path)
         "$path may be removed from this phone again to save space."
     }
 
-    fun restoreVersion(folder: String, path: String, version: Version) = act {
+    override fun restoreVersion(folder: String, path: String, version: Version) = act {
         Peer.start().restoreVersion(folder, path, version.id)
         "Restored the earlier version of $path on all your devices."
     }
 
     /** Keeps [keep], a version's ID or `both` (ADR 0029). */
-    fun resolve(folder: String, path: String, keep: String) = act {
+    override fun resolve(folder: String, path: String, keep: String) = act {
         Peer.start().resolve(folder, path, keep)
         current.value = Page.Files(folder)
         if (keep == "both") "Kept both versions of $path on all your devices." else "Kept the version you chose on all your devices."
     }
 
     /** A read-only copy of [version] of [path], to open in another app. */
-    suspend fun openVersion(folder: String, path: String, version: Version): String =
+    override suspend fun openVersion(folder: String, path: String, version: Version): String =
         if (version.id.startsWith("previous:")) {
             withContext(Dispatchers.IO) { Peer.start().versionFile(folder, path, version.id) }
         } else {
             Peer.start().openVersion(folder, path, version.id)
         }
 
-    fun dismissCrashes() = act {
+    override fun dismissCrashes() = act {
         withContext(Dispatchers.IO) { org.tidefell.ffi.dismissCrashes(Peer.dataDir) }
         ""
     }
 
     /** Starts syncing again after the node stopped by itself. */
-    fun restart() = act {
+    override fun restart() = act {
         Peer.restart()
         "Syncing again."
     }

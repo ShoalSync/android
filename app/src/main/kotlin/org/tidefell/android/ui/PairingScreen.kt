@@ -27,10 +27,25 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.tidefell.ffi.Folder
+import org.tidefell.ffi.FolderOffer
 
-/** Shows a pairing code (ADR 0015) until a device holding the user key approves this phone. */
+/**
+ * Shows a pairing code (ADR 0015) until a device holding the user key approves this phone, then
+ * offers its folders. Joining one is a slot, so screenshot tests can give it its own model.
+ */
 @Composable
-fun PairingScreen(onPaired: () -> Unit, model: PairingViewModel = viewModel()) {
+fun PairingScreen(
+    onPaired: () -> Unit,
+    model: PairingModel = viewModel<PairingViewModel>(),
+    joinFolder: @Composable (
+        offer: FolderOffer,
+        onDone: (Folder) -> Unit,
+        onCancel: () -> Unit,
+        modifier: Modifier
+    ) -> Unit =
+        { offer, onDone, onCancel, modifier -> AddFolderScreen(offer, onDone, onCancel, modifier) },
+) {
     val step by model.step.collectAsStateWithLifecycle()
     var joining by rememberSaveable { mutableStateOf<String?>(null) }
     var joined by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -39,14 +54,14 @@ fun PairingScreen(onPaired: () -> Unit, model: PairingViewModel = viewModel()) {
     Scaffold { padding ->
         if (offer != null) {
             // Not inside the scrolling column: the folder picker scrolls on its own.
-            AddFolderScreen(
-                offer = offer,
-                onDone = {
+            joinFolder(
+                offer,
+                {
                     joined = joined + offer.id
                     joining = null
                 },
-                onCancel = { joining = null },
-                modifier = Modifier.padding(padding),
+                { joining = null },
+                Modifier.padding(padding),
             )
             return@Scaffold
         }

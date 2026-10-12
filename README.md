@@ -89,6 +89,16 @@ access).
 
 `./gradlew :app:testDebugUnitTest` runs the unit tests.
 
+Every screen, in each state worth seeing (empty, paused, with problems, a dialog open), has a
+screenshot test in `app/src/test/kotlin/org/tidefell/android/ui/screenshots/`. Robolectric draws
+the screens on the JVM with fixed data, through the `HomeModel`, `SettingsModel`, `StatusModel`,
+`AddFolderModel` and `PairingModel` interfaces the view models implement, so no node runs.
+Roborazzi compares them with the images in `app/src/test/screenshots/`:
+`./gradlew :app:verifyRoborazziDebug` fails on any difference, and CI runs it; after a deliberate
+change, `./gradlew :app:recordRoborazziDebug` writes the images again, and the diff of the PNGs
+shows what changed. A new screen or state gets a test, and its image is looked at before it is
+committed.
+
 `./gradlew :app:lintDebug` runs Android Lint and `scripts/detekt.sh` runs detekt with its formatting
 rules (ADR 0031). Both fail on any finding not in their baselines, `app/lint-baseline.xml` and
 `detekt-baseline.xml`; fix a new finding rather than adding it to a baseline.

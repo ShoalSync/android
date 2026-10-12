@@ -41,11 +41,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import java.io.File
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
+import java.io.File
 
 /**
  * Adds a new folder at a folder on the phone, or joins [offer] from another device. [onDone] is
@@ -57,7 +57,7 @@ fun AddFolderScreen(
     onDone: (Folder) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
-    model: AddFolderViewModel = viewModel(key = "add-${offer?.id ?: "new"}"),
+    model: AddFolderModel = viewModel<AddFolderViewModel>(key = "add-${offer?.id ?: "new"}"),
 ) {
     val finished: (Folder) -> Unit = {
         model.reset()
@@ -80,7 +80,9 @@ fun AddFolderScreen(
     }
 
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(offer?.let { "Join ${it.name}" } ?: "Add a folder", style = MaterialTheme.typography.titleLarge)
+        // A new folder is added from the home screen, whose top bar says so; joining happens
+        // while pairing, where there is none.
+        offer?.let { Text("Join ${it.name}", style = MaterialTheme.typography.titleLarge) }
         when (val s = step) {
             AddFolderViewModel.Step.Place -> PlaceStep(model)
             AddFolderViewModel.Step.Access -> {
@@ -107,7 +109,7 @@ fun AddFolderScreen(
 }
 
 @Composable
-private fun PlaceStep(model: AddFolderViewModel) {
+private fun PlaceStep(model: AddFolderModel) {
     Text("Where should its files live on this phone?")
     ListItem(
         headlineContent = { Text("In a folder on this phone") },
@@ -122,7 +124,7 @@ private fun PlaceStep(model: AddFolderViewModel) {
 }
 
 @Composable
-private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderViewModel) {
+private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderModel) {
     val dir = step.dir
     if (dir == null) {
         Text("Choose a folder")
@@ -152,7 +154,7 @@ private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderViewMod
 }
 
 @Composable
-private fun ChooseStep(dir: File, model: AddFolderViewModel) {
+private fun ChooseStep(dir: File, model: AddFolderModel) {
     var choice by rememberSaveable { mutableStateOf(SyncChoice.BACKUP_ONLY) }
     var confirmRemoving by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -179,7 +181,9 @@ private fun ChooseStep(dir: File, model: AddFolderViewModel) {
 fun SyncChoices(selected: SyncChoice, onSelect: (SyncChoice) -> Unit) {
     SyncChoice.forPhoneFolders.forEach { choice ->
         Row(
-            Modifier.fillMaxWidth().selectable(selected = choice == selected, onClick = { onSelect(choice) }).padding(vertical = 4.dp),
+            Modifier.fillMaxWidth().selectable(selected = choice == selected, onClick = {
+                onSelect(choice)
+            }).padding(vertical = 4.dp),
             verticalAlignment = Alignment.Top,
         ) {
             RadioButton(selected = choice == selected, onClick = null)

@@ -11,6 +11,9 @@ import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
 import org.tidefell.ffi.ProblemKind
 
+/** "1 file" or "[count] files". */
+fun files(count: Number): String = if (count.toLong() == 1L) "1 file" else "$count files"
+
 /** What a folder is doing, in a few words: "Syncing: 3 files to fetch" (ADR 0030). */
 fun folderStateText(folder: Folder): String {
     val state = when (folder.state) {
@@ -21,11 +24,11 @@ fun folderStateText(folder: Folder): String {
         FolderState.ERROR -> "Not syncing: ${folder.error ?: "an error"}"
     }
     val pending = if (folder.pendingFiles > 0UL && folder.state != FolderState.ERROR) {
-        ": ${folder.pendingFiles} files to fetch"
+        ": ${files(folder.pendingFiles.toLong())} to fetch"
     } else {
         ""
     }
-    val problems = if (folder.problems > 0UL) " · ${folder.problems} files with problems" else ""
+    val problems = if (folder.problems > 0UL) " · ${files(folder.problems.toLong())} with problems" else ""
     return state + pending + problems
 }
 

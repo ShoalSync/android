@@ -50,11 +50,21 @@ import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.ProblemKind
 import org.tidefell.ffi.Recycled
 
-/** Folders, their files and recycle bins, settings, and adding folders. */
+/**
+ * Folders, their files and recycle bins, settings, and adding folders. The settings, status and
+ * add folder pages are slots, so screenshot tests can give them their own models.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(model: HomeViewModel = viewModel()) {
-    val node by model.node.collectAsStateWithLifecycle()
+fun HomeScreen(
+    model: HomeModel = viewModel<HomeViewModel>(),
+    settings: @Composable () -> Unit = { SettingsScreen() },
+    status: @Composable () -> Unit = { StatusPage() },
+    addFolder: @Composable (onDone: (Folder) -> Unit, onCancel: () -> Unit) -> Unit = { onDone, onCancel ->
+        AddFolderScreen(offer = null, onDone = onDone, onCancel = onCancel)
+    },
+) {
+    val started by model.started.collectAsStateWithLifecycle()
     val page by model.page.collectAsStateWithLifecycle()
     val folders by model.folders.collectAsStateWithLifecycle()
     val message by model.message.collectAsStateWithLifecycle()
@@ -115,7 +125,7 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
             )
         },
         floatingActionButton = {
-            if (page == Page.Folders && node != null) {
+            if (page == Page.Folders && started) {
                 ExtendedFloatingActionButton(onClick = { model.go(Page.AddFolder) }) { Text("Add folder") }
             }
         },
@@ -123,15 +133,11 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             when {
-                node == null -> CircularProgressIndicator(Modifier.padding(24.dp))
-                page == Page.Settings -> SettingsScreen()
-                page == Page.Status -> StatusPage()
+                !started -> CircularProgressIndicator(Modifier.padding(24.dp))
+                page == Page.Settings -> settings()
+                page == Page.Status -> status()
                 page is Page.Activity && folder != null -> ActivityPage(model)
-                page == Page.AddFolder -> AddFolderScreen(
-                    offer = null,
-                    onDone = { model.go(Page.Files(it.id)) },
-                    onCancel = { model.back() },
-                )
+                page == Page.AddFolder -> addFolder({ model.go(Page.Files(it.id)) }, { model.back() })
                 page is Page.Files && folder != null -> FileList(model, folder)
                 page is Page.RecycleBin && folder != null -> RecycleBin(model, folder)
                 page is Page.History && folder != null -> HistoryPage(model, folder, (page as Page.History).path)
@@ -149,7 +155,7 @@ fun HomeScreen(model: HomeViewModel = viewModel()) {
 
 /** Pausing syncing on the whole phone (ADR 0029). */
 @Composable
-private fun DevicePause(model: HomeViewModel) {
+private fun DevicePause(model: HomeModel) {
     val status by model.status.collectAsStateWithLifecycle()
     val paused = status?.paused ?: return
     if (paused) {
@@ -159,7 +165,9 @@ private fun DevicePause(model: HomeViewModel) {
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
-    TextButton(onClick = { if (paused) model.resume(null) else model.pause(null) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+    TextButton(onClick = {
+        if (paused) model.resume(null) else model.pause(null)
+    }, modifier = Modifier.padding(horizontal = 8.dp)) {
         Text(if (paused) "Resume syncing" else "Pause syncing on this phone")
     }
 }
@@ -177,7 +185,8 @@ private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
                 supportingContent = {
                     val notes = listOfNotNull(
                         folderStateText(folder),
-                        "${folder.conflicts} files need a decision".takeIf { folder.conflicts > 0UL },
+                        "${files(folder.conflicts.toLong())} ${if (folder.conflicts == 1UL) "needs" else "need"} a decision"
+                            .takeIf { folder.conflicts > 0UL },
                     ).joinToString(" · ")
                     val summary = if (choice == SyncChoice.FILES_ON_DEMAND) choice.title else "${folder.path}\n${choice.title}"
                     Text(if (notes.isEmpty()) summary else "$summary\n$notes")
@@ -190,7 +199,7 @@ private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileList(model: HomeViewModel, folder: Folder) {
+private fun FileList(model: HomeModel, folder: Folder) {
     val context = LocalContext.current
     val files by model.files.collectAsStateWithLifecycle()
     val problems by model.problems.collectAsStateWithLifecycle()
@@ -212,7 +221,7 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
         TextButton(onClick = { model.go(Page.Activity(folder.id)) }) { Text("Activity") }
         if (problems.isNotEmpty()) {
             TextButton(onClick = { showProblems = !showProblems }) {
-                Text(if (showProblems) "Hide problems" else "${problems.size} files with problems")
+                Text(if (showProblems) "Hide problems" else "${files(problems.size)} with problems")
             }
         }
     }
@@ -284,13 +293,15 @@ private fun FileList(model: HomeViewModel, folder: Folder) {
  * delete it everywhere.
  */
 @Composable
-private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDismiss: () -> Unit) {
+private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss: () -> Unit) {
     var confirmDelete by remember { mutableStateOf(false) }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = onDismiss,
             title = { Text("Delete from all devices?") },
-            text = { Text("${file.path} is deleted on every device. Each keeps it in its recycle bin until its retention runs out.") },
+            text = {
+                Text("${file.path} is deleted on every device. Each keeps it in its recycle bin until its retention runs out.")
+            },
             confirmButton = {
                 TextButton(onClick = {
                     model.deleteEverywhere(folder.id, file.path)
@@ -349,7 +360,7 @@ private fun FileActions(model: HomeViewModel, folder: Folder, file: File, onDism
 
 /** What this phone applied to a folder, newest first, and who made each change (ADR 0030). */
 @Composable
-private fun ActivityPage(model: HomeViewModel) {
+private fun ActivityPage(model: HomeModel) {
     val activity by model.activity.collectAsStateWithLifecycle()
     if (activity.isEmpty()) {
         Text("Nothing has changed yet.", Modifier.padding(24.dp))
@@ -360,7 +371,13 @@ private fun ActivityPage(model: HomeViewModel) {
             ListItem(
                 headlineContent = { Text(activityText(change)) },
                 supportingContent = {
-                    Text(DateUtils.getRelativeTimeSpanString(change.timeMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString())
+                    Text(
+                        DateUtils.getRelativeTimeSpanString(
+                            change.timeMs,
+                            System.currentTimeMillis(),
+                            DateUtils.MINUTE_IN_MILLIS
+                        ).toString()
+                    )
                 },
             )
         }
@@ -369,7 +386,7 @@ private fun ActivityPage(model: HomeViewModel) {
 
 /** Moves the files a full replica holds to this phone's recycle bin, after asking. */
 @Composable
-private fun CleanUpDialog(model: HomeViewModel, folder: Folder, onDismiss: () -> Unit) {
+private fun CleanUpDialog(model: HomeModel, folder: Folder, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val candidates = remember { model.cleanUpCandidates() }
     val size = Formatter.formatShortFileSize(context, candidates.sumOf { it.size.toLong() })
@@ -381,8 +398,9 @@ private fun CleanUpDialog(model: HomeViewModel, folder: Folder, onDismiss: () ->
                 if (candidates.isEmpty()) {
                     "Nothing to clean up yet: no file made on this phone is held by a device that keeps everything."
                 } else {
-                    "${candidates.size} files, $size, are held by a device that keeps everything. They move to this " +
-                        "phone's recycle bin and stay on your other devices."
+                    "${files(candidates.size)}, $size, ${if (candidates.size == 1) "is" else "are"} held by a device that " +
+                        "keeps everything. ${if (candidates.size == 1) "It moves" else "They move"} to this " +
+                        "phone's recycle bin and ${if (candidates.size == 1) "stays" else "stay"} on your other devices."
                 },
             )
         },
@@ -399,7 +417,7 @@ private fun CleanUpDialog(model: HomeViewModel, folder: Folder, onDismiss: () ->
 }
 
 @Composable
-private fun RecycleBin(model: HomeViewModel, folder: Folder) {
+private fun RecycleBin(model: HomeModel, folder: Folder) {
     val context = LocalContext.current
     val items by model.recycleBin.collectAsStateWithLifecycle()
     var acting by remember { mutableStateOf<Recycled?>(null) }
@@ -408,7 +426,9 @@ private fun RecycleBin(model: HomeViewModel, folder: Folder) {
         Text("The recycle bin is empty.", Modifier.padding(24.dp))
         return
     }
-    TextButton(onClick = { confirmEmpty = true }, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Empty recycle bin") }
+    TextButton(onClick = {
+        confirmEmpty = true
+    }, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Empty recycle bin") }
     LazyColumn {
         items(items, key = { it.entry }) { item ->
             val size = Formatter.formatShortFileSize(context, item.size.toLong())
@@ -452,7 +472,12 @@ private fun RecycleBin(model: HomeViewModel, folder: Folder) {
         AlertDialog(
             onDismissRequest = { confirmEmpty = false },
             title = { Text("Empty the recycle bin?") },
-            text = { Text("The ${items.size} files are deleted from this phone for good. Your other devices keep their own copies.") },
+            text = {
+                Text(
+                    (if (items.size == 1) "The file is" else "The ${items.size} files are") +
+                        " deleted from this phone for good. Your other devices keep their own copies.",
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     model.emptyRecycleBin(folder.id)

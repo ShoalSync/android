@@ -33,7 +33,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -51,12 +50,13 @@ import org.tidefell.ffi.CheckLevel
 import org.tidefell.ffi.DiagnosticsBundle
 import org.tidefell.ffi.PeerState
 import org.tidefell.ffi.Transfer
+import java.io.File
 
 /**
  * This phone's status (ADR 0030): the devices it syncs with and how, what it has sent and
  * received, the doctor's checks, and a diagnostics bundle to share.
  */
-class StatusViewModel(application: Application) : AndroidViewModel(application) {
+class StatusViewModel(application: Application) : AndroidViewModel(application), StatusModel {
     private val app get() = getApplication<Application>()
     private val tick = MutableStateFlow(0)
     private val checksState = MutableStateFlow<List<Check>?>(null)
@@ -64,20 +64,22 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
     private val errorState = MutableStateFlow<String?>(null)
     private var ticking: Job? = null
 
-    val peers: StateFlow<List<PeerState>> = viewModelScope.nodeState(emptyList(), refresh = tick) { it.peerStates() }
+    override val peers: StateFlow<List<PeerState>> = viewModelScope.nodeState(emptyList(), refresh = tick) {
+        it.peerStates()
+    }
 
-    val transfer: StateFlow<Transfer?> = viewModelScope.nodeState(null, refresh = tick) { it.transfer() }
+    override val transfer: StateFlow<Transfer?> = viewModelScope.nodeState(null, refresh = tick) { it.transfer() }
 
     /** The doctor's checks, once asked for. */
-    val checks: StateFlow<List<Check>?> = checksState
+    override val checks: StateFlow<List<Check>?> = checksState
 
     /** A diagnostics bundle written and waiting to be looked at and shared. */
-    val bundle: StateFlow<DiagnosticsBundle?> = bundleState
+    override val bundle: StateFlow<DiagnosticsBundle?> = bundleState
 
-    val error: StateFlow<String?> = errorState
+    override val error: StateFlow<String?> = errorState
 
     /** Reads the rates again every two seconds while the page is shown. */
-    fun showing(shown: Boolean) {
+    override fun showing(shown: Boolean) {
         ticking?.cancel()
         ticking = if (!shown) {
             null
@@ -92,7 +94,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /** Runs the engine's checks and the phone's own; they read the disks and the network. */
-    fun check() {
+    override fun check() {
         errorState.value = null
         viewModelScope.launch {
             checksState.value = withContext(Dispatchers.IO) {
@@ -117,7 +119,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /** Writes a diagnostics bundle, with names hashed, for the user to look at first. */
-    fun buildBundle() {
+    override fun buildBundle() {
         errorState.value = null
         viewModelScope.launch {
             bundleState.value = withContext(Dispatchers.IO) {
@@ -132,7 +134,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun bundleClosed() {
+    override fun bundleClosed() {
         bundleState.value = null
     }
 
@@ -158,7 +160,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
 }
 
 @Composable
-fun StatusPage(model: StatusViewModel = viewModel()) {
+fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
     val context = LocalContext.current
     val peers by model.peers.collectAsStateWithLifecycle()
     val transfer by model.transfer.collectAsStateWithLifecycle()

@@ -17,7 +17,7 @@ import org.tidefell.android.folders.SyncChoice
 import org.tidefell.ffi.Folder
 
 /** How each folder syncs and how long it keeps deleted files, and when phone folders sync. */
-class SettingsViewModel(application: Application) : AndroidViewModel(application) {
+class SettingsViewModel(application: Application) : AndroidViewModel(application), SettingsModel {
     /** When phone folders sync in the background. */
     data class Background(val unmeteredOnly: Boolean, val chargingOnly: Boolean)
 
@@ -27,15 +27,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val changes = MutableStateFlow(0)
     private val errorsByFolder = MutableStateFlow<Map<String, String>>(emptyMap())
 
-    val background: StateFlow<Background> = backgroundState
+    override val background: StateFlow<Background> = backgroundState
 
     private val localDiscoveryState = MutableStateFlow(settings.localDiscovery)
 
     /** Whether this phone finds the user's devices on the local network. */
-    val localDiscovery: StateFlow<Boolean> = localDiscoveryState
+    override val localDiscovery: StateFlow<Boolean> = localDiscoveryState
 
     /** Turns local discovery on or off; the peer restarts, because it reads it at start. */
-    fun setLocalDiscovery(on: Boolean) {
+    override fun setLocalDiscovery(on: Boolean) {
         localDiscoveryState.value = on
         settings.localDiscovery = on
         viewModelScope.launch(Dispatchers.IO) {
@@ -52,13 +52,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val limitsState = MutableStateFlow(Limits(settings.uploadKib, settings.downloadKib, settings.limitLocal))
     private val limitsError = MutableStateFlow<String?>(null)
 
-    val limits: StateFlow<Limits> = limitsState
+    override val limits: StateFlow<Limits> = limitsState
 
     /** Why the last limits could not be applied, if they could not. */
-    val limitsProblem: StateFlow<String?> = limitsError
+    override val limitsProblem: StateFlow<String?> = limitsError
 
     /** Keeps [limits] and applies them to the running node at once (ADR 0029). */
-    fun setLimits(limits: Limits) {
+    override fun setLimits(limits: Limits) {
         limitsState.value = limits
         settings.uploadKib = limits.uploadKib
         settings.downloadKib = limits.downloadKib
@@ -70,19 +70,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) { it.folders() }
+    override val folders: StateFlow<List<Folder>> = viewModelScope.nodeState(emptyList(), refresh = changes) {
+        it.folders()
+    }
 
     private val reportUrlState = MutableStateFlow(settings.reportUrl)
     private val reportUrlError = MutableStateFlow<String?>(null)
 
     /** Where crash reports are filed (ADR 0030); empty for the default. */
-    val reportUrl: StateFlow<String> = reportUrlState
+    override val reportUrl: StateFlow<String> = reportUrlState
 
     /** Why the last report URL was not kept, if it was not. */
-    val reportUrlProblem: StateFlow<String?> = reportUrlError
+    override val reportUrlProblem: StateFlow<String?> = reportUrlError
 
     /** Keeps [url] if it is an issues page over HTTP or HTTPS without a query, or empty. */
-    fun setReportUrl(url: String) {
+    override fun setReportUrl(url: String) {
         val trimmed = url.trim()
         val valid = trimmed.isEmpty() ||
             (Regex("^https?://[^/\\s?#]+(/[^\\s?#]*)?$").matches(trimmed))
@@ -94,20 +96,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     /** The last error of an action on a folder, by folder ID. */
-    val errors: StateFlow<Map<String, String>> = errorsByFolder
+    override val errors: StateFlow<Map<String, String>> = errorsByFolder
 
-    fun setBackground(change: (Background) -> Background) {
+    override fun setBackground(change: (Background) -> Background) {
         backgroundState.update(change)
         settings.syncUnmeteredOnly = backgroundState.value.unmeteredOnly
         settings.syncChargingOnly = backgroundState.value.chargingOnly
         FolderSync.schedule(app, folders.value.any { !PhoneFolders.inAppStorage(it) })
     }
 
-    fun syncNow() = FolderSync.now(app)
+    override fun syncNow() {
+        FolderSync.now(app)
+    }
 
-    fun setChoice(folder: Folder, choice: SyncChoice) = act(folder.id) { PhoneFolders.setChoice(folder, choice) }
+    override fun setChoice(folder: Folder, choice: SyncChoice) = act(folder.id) { PhoneFolders.setChoice(folder, choice) }
 
-    fun setRetention(folder: String, days: UInt) = act(folder) { Peer.start().setRetention(folder, days) }
+    override fun setRetention(folder: String, days: UInt) = act(folder) { Peer.start().setRetention(folder, days) }
 
     /** Runs [action] on [Dispatchers.IO] and records its error, if any, against [folder]. */
     private fun act(folder: String, action: suspend () -> Unit) {
