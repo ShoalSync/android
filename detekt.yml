@@ -1,5 +1,8 @@
 # detekt's defaults, with these changes (ADR 0031). Existing findings are in detekt-baseline.xml.
 style:
+  MagicNumber:
+    # A number given a name where it is declared is not magic, such as each colour of the theme.
+    ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 140
 naming:

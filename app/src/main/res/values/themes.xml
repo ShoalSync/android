@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind the Compose UI, in the theme's background colour, so opening the app
+         shows no white flash in the dark theme. Compose draws everything else (ui/Theme.kt). -->
+    <style name="Theme.Tidefell" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/tidefell_background</item>
+        <item name="android:colorAccent">@color/tidefell_primary</item>
+    </style>
+</resources>

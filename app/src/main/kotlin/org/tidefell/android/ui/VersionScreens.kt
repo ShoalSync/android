@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -50,21 +54,28 @@ fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
     val versions by model.versions.collectAsStateWithLifecycle()
     var restoring by remember { mutableStateOf<Version?>(null) }
     val earlier = versions.filter { it.kind == VersionKind.PREVIOUS }
-    Text(path, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+    Text(path, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
     if (earlier.isEmpty()) {
-        Text("No earlier versions are kept on this phone.", Modifier.padding(horizontal = 16.dp))
+        EmptyState(TidefellIcons.History, "No earlier versions are kept on this phone.")
         return
     }
     Text(
         "Versions this phone kept when the file was replaced. Restoring one makes it the file again on all your devices.",
         style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp),
     )
     LazyColumn {
         items(earlier, key = { it.id }) { version ->
             ListItem(
+                leadingContent = { IconTile(TidefellIcons.History) },
                 headlineContent = { Text("Modified ${relative(version.modifiedMs)}") },
-                supportingContent = { Text("${size(context, version.size)} · replaced ${relative(version.keptMs ?: 0)}") },
+                supportingContent = {
+                    Text(
+                        "${size(context, version.size)} · replaced ${relative(version.keptMs ?: 0)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
                 modifier = Modifier.clickable { restoring = version },
             )
         }
@@ -101,8 +112,6 @@ fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
  */
 @Composable
 fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val versions by model.versions.collectAsStateWithLifecycle()
     val waiting = versions.filter { it.kind != VersionKind.PREVIOUS }
     LazyColumn {
@@ -113,30 +122,17 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                     Text("There is nothing to decide: this file has one version now.")
                     OutlinedButton(onClick = onLater) { Text("Back") }
                 } else {
-                    Text(
+                    Banner(
+                        TidefellIcons.Warning,
                         "This file was changed on more than one device while they could not reach each other. Your devices " +
                             "show the first version below until you decide. Nothing is lost in the meantime.",
-                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
         }
         if (waiting.size >= 2) {
             items(waiting, key = { it.id }) { version ->
-                val label = if (version.kind == VersionKind.CURRENT) "Shown now" else "Other version"
-                ListItem(
-                    overlineContent = { Text(label) },
-                    headlineContent = { Text(version.authorName ?: "Another device") },
-                    supportingContent = {
-                        Column {
-                            Text("Modified ${relative(version.modifiedMs)} · ${size(context, version.size)}")
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { scope.launch { open(context, model, folder, path, version) } }) { Text("Open") }
-                                TextButton(onClick = { model.resolve(folder.id, path, version.id) }) { Text("Keep this one") }
-                            }
-                        }
-                    },
-                )
+                ConflictVersion(model, folder, path, version)
             }
             item {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -145,6 +141,7 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                             "Keeping both leaves the version shown now as the file and puts each other one beside it, named " +
                             "after its device and day.",
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { model.resolve(folder.id, path, "both") }) { Text("Keep both") }
@@ -152,6 +149,31 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                     }
                 }
             }
+        }
+    }
+}
+
+/** One version of a file in conflict: whose it is, when it changed, and keeping it. */
+@Composable
+private fun ConflictVersion(model: HomeModel, folder: Folder, path: String, version: Version) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val label = if (version.kind == VersionKind.CURRENT) "Shown now" else "Other version"
+    SectionCard(label, Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconTile(TidefellIcons.Devices)
+            Column {
+                Text(version.authorName ?: "Another device", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Modified ${relative(version.modifiedMs)} · ${size(context, version.size)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { scope.launch { open(context, model, folder, path, version) } }) { Text("Open") }
+            Button(onClick = { model.resolve(folder.id, path, version.id) }) { Text("Keep this one") }
         }
     }
 }
@@ -167,12 +189,22 @@ fun CrashNotice(model: HomeModel) {
     val crashes by model.crashes.collectAsStateWithLifecycle()
     val newest = crashes.maxByOrNull { it.timeMs }
     if (crashed == null && newest == null) return
-    Card(Modifier.fillMaxWidth().padding(16.dp)) {
+    Card(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        ),
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                if (crashed != null) "Syncing stopped because of an error" else "Tidefell stopped unexpectedly",
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(TidefellIcons.Error, contentDescription = null, modifier = Modifier.padding(top = 2.dp).size(20.dp))
+                Text(
+                    if (crashed != null) "Syncing stopped because of an error" else "Tidefell stopped unexpectedly",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
             Text(crashed ?: newest!!.message, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (crashed != null) OutlinedButton(onClick = model::restart) { Text("Start syncing again") }

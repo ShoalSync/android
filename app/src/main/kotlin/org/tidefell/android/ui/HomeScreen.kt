@@ -8,18 +8,26 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -27,6 +35,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,8 +43,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,6 +54,7 @@ import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.ffi.ChangeKind
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Operation
@@ -101,158 +113,117 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    if (page == Page.Folders) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            BrandMark()
+                            Text(title)
+                        }
+                    } else {
+                        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                },
+                navigationIcon = {
+                    // Adding a folder backs out step by step, with its own back handling.
+                    if (page.parent != null && page != Page.AddFolder) {
+                        IconButton(onClick = { model.back() }) { Icon(TidefellIcons.Back, contentDescription = "Back") }
+                    }
+                },
                 actions = {
                     when (page) {
                         Page.Folders -> {
-                            TextButton(onClick = { model.go(Page.Status) }) { Text("Status") }
-                            TextButton(onClick = { model.go(Page.Settings) }) { Text("Settings") }
+                            IconButton(onClick = { model.go(Page.Status) }) { Icon(TidefellIcons.Devices, contentDescription = "Status") }
+                            IconButton(
+                                onClick = { model.go(Page.Settings) }
+                            ) { Icon(TidefellIcons.Settings, contentDescription = "Settings") }
                         }
-                        is Page.Files -> {
-                            if (folder != null) {
-                                TextButton(onClick = { if (folder.paused) model.resume(folder.id) else model.pause(folder.id) }) {
-                                    Text(if (folder.paused) "Resume" else "Pause")
-                                }
+                        is Page.Files -> if (folder != null) {
+                            IconButton(onClick = { if (folder.paused) model.resume(folder.id) else model.pause(folder.id) }) {
+                                Icon(
+                                    if (folder.paused) TidefellIcons.Play else TidefellIcons.Pause,
+                                    contentDescription = if (folder.paused) "Resume" else "Pause",
+                                )
                             }
-                            if (folder != null && PhoneFolders.choice(folder).let { it == SyncChoice.BACKUP_ONLY || it == SyncChoice.TWO_WAY }) {
-                                TextButton(onClick = { cleaningUp = true }) { Text("Clean up") }
-                            }
-                            TextButton(onClick = { model.go(Page.RecycleBin(folderId!!)) }) { Text("Recycle bin") }
                         }
                         else -> {}
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
             )
         },
         floatingActionButton = {
             if (page == Page.Folders && started) {
-                ExtendedFloatingActionButton(onClick = { model.go(Page.AddFolder) }) { Text("Add folder") }
+                ExtendedFloatingActionButton(
+                    onClick = { model.go(Page.AddFolder) },
+                    icon = { Icon(TidefellIcons.Add, contentDescription = null) },
+                    text = { Text("Add folder") },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                )
             }
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             when {
-                !started -> CircularProgressIndicator(Modifier.padding(24.dp))
+                !started -> CircularProgressIndicator(Modifier.padding(48.dp).align(Alignment.CenterHorizontally))
                 page == Page.Settings -> settings()
                 page == Page.Status -> status()
                 page is Page.Activity && folder != null -> ActivityPage(model)
                 page == Page.AddFolder -> addFolder({ model.go(Page.Files(it.id)) }, { model.back() })
-                page is Page.Files && folder != null -> FileList(model, folder)
+                page is Page.Files && folder != null -> FileList(model, folder) { cleaningUp = true }
                 page is Page.RecycleBin && folder != null -> RecycleBin(model, folder)
                 page is Page.History && folder != null -> HistoryPage(model, folder, (page as Page.History).path)
                 page is Page.Conflict && folder != null -> ConflictPage(model, folder, (page as Page.Conflict).path) { model.back() }
-                else -> {
-                    CrashNotice(model)
-                    DevicePause(model)
-                    FolderList(folders) { model.go(Page.Files(it.id)) }
-                }
+                else -> FolderList(model, folders) { model.go(Page.Files(it.id)) }
             }
         }
     }
     if (cleaningUp && folder != null) CleanUpDialog(model, folder) { cleaningUp = false }
 }
 
-/** Pausing syncing on the whole phone (ADR 0029). */
+/** The look of a file: on the phone, only on other devices, or waiting for a decision. */
 @Composable
-private fun DevicePause(model: HomeModel) {
-    val status by model.status.collectAsStateWithLifecycle()
-    val paused = status?.paused ?: return
-    if (paused) {
-        Text(
-            "Syncing is paused on this phone. Changes here are recorded and sent when it resumes.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
-    }
-    TextButton(onClick = {
-        if (paused) model.resume(null) else model.pause(null)
-    }, modifier = Modifier.padding(horizontal = 8.dp)) {
-        Text(if (paused) "Resume syncing" else "Pause syncing on this phone")
-    }
-}
-
-@Composable
-private fun FolderList(folders: List<Folder>, onOpen: (Folder) -> Unit) {
-    if (folders.isEmpty()) {
-        Text("No folders yet. Add one, such as the camera folder, to back it up.", Modifier.padding(24.dp))
-    }
-    LazyColumn {
-        items(folders, key = { it.id }) { folder ->
-            val choice = PhoneFolders.choice(folder)
-            ListItem(
-                headlineContent = { Text(Peer.folderName(folder)) },
-                supportingContent = {
-                    val notes = listOfNotNull(
-                        folderStateText(folder),
-                        "${files(folder.conflicts.toLong())} ${if (folder.conflicts == 1UL) "needs" else "need"} a decision"
-                            .takeIf { folder.conflicts > 0UL },
-                    ).joinToString(" · ")
-                    val summary = if (choice == SyncChoice.FILES_ON_DEMAND) choice.title else "${folder.path}\n${choice.title}"
-                    Text(if (notes.isEmpty()) summary else "$summary\n$notes")
-                },
-                modifier = Modifier.clickable { onOpen(folder) },
-            )
-        }
+private fun FileTile(file: File) {
+    val colors = MaterialTheme.colorScheme
+    when {
+        file.conflicts > 0u -> IconTile(TidefellIcons.Warning, colors.tertiaryContainer, colors.onTertiaryContainer)
+        !file.onDisk -> IconTile(TidefellIcons.Cloud, colors.surfaceContainerHigh, colors.onSurfaceVariant)
+        else -> IconTile(TidefellIcons.File)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FileList(model: HomeModel, folder: Folder) {
+private fun FileList(model: HomeModel, folder: Folder, onCleanUp: () -> Unit) {
     val context = LocalContext.current
     val files by model.files.collectAsStateWithLifecycle()
     val problems by model.problems.collectAsStateWithLifecycle()
     val status by model.status.collectAsStateWithLifecycle()
     var acting by remember { mutableStateOf<File?>(null) }
     var showProblems by rememberSaveable { mutableStateOf(false) }
-    var renaming by remember { mutableStateOf<PathProblem?>(null) }
     val inAppStorage = PhoneFolders.inAppStorage(folder)
-    if (folder.paused) {
-        Text(
-            "Syncing of this folder is paused. Changes here are recorded and sent when it resumes.",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(16.dp),
-        )
-    } else {
-        Text(folderStateText(folder), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 16.dp))
-    }
-    Row(Modifier.padding(horizontal = 8.dp)) {
-        TextButton(onClick = { model.go(Page.Activity(folder.id)) }) { Text("Activity") }
+    FolderHeader(model, folder, onCleanUp) {
         if (problems.isNotEmpty()) {
-            TextButton(onClick = { showProblems = !showProblems }) {
-                Text(if (showProblems) "Hide problems" else "${files(problems.size)} with problems")
-            }
-        }
-    }
-    if (showProblems) {
-        problems.forEach { problem ->
-            ListItem(
-                headlineContent = { Text(problem.path) },
-                supportingContent = { Text("${problemText(problem)}\n${problem.message}", color = MaterialTheme.colorScheme.error) },
-                trailingContent = {
-                    // A name this phone cannot store can be renamed on all devices (ADR 0033).
-                    if (problem.kind == ProblemKind.NAME_NOT_ALLOWED && problem.operation == Operation.WRITE) {
-                        TextButton(onClick = { renaming = problem }) { Text("Rename") }
-                    }
-                },
+            FilterChip(
+                selected = showProblems,
+                onClick = { showProblems = !showProblems },
+                label = { Text("${files(problems.size)} with problems") },
+                leadingIcon = { Icon(TidefellIcons.Error, contentDescription = null, modifier = Modifier.size(18.dp)) },
             )
         }
     }
-    renaming?.let { problem ->
-        RenameDialog(
-            path = problem.path,
-            onRename = { to ->
-                model.rename(folder.id, problem.path, to)
-                renaming = null
-            },
-            onDismiss = { renaming = null },
-        )
-    }
-    if (files.isEmpty()) Text("No files yet.", Modifier.padding(24.dp))
+    if (showProblems) ProblemList(model, folder, problems)
+    if (files.isEmpty()) EmptyState(TidefellIcons.File, "No files yet.")
     LazyColumn {
         items(files, key = { it.entry }) { file ->
+            val tone = if (file.conflicts > 0u) MaterialTheme.statusColors.attention else MaterialTheme.colorScheme.onSurfaceVariant
             ListItem(
+                leadingContent = { FileTile(file) },
                 headlineContent = { Text(file.path) },
                 supportingContent = {
                     Text(
@@ -263,7 +234,7 @@ private fun FileList(model: HomeModel, folder: Folder) {
                             file.onDisk -> "On this phone"
                             else -> "On your other devices"
                         } + if (file.author == status?.device) "" else " · by ${file.authorName}",
-                        color = if (file.conflicts > 0u) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified,
+                        color = tone,
                     )
                 },
                 modifier = Modifier.combinedClickable(
@@ -288,6 +259,61 @@ private fun FileList(model: HomeModel, folder: Folder) {
     acting?.let { file -> FileActions(model, folder, file) { acting = null } }
 }
 
+/** What a folder is doing, and the ways into its other pages. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FolderHeader(model: HomeModel, folder: Folder, onCleanUp: () -> Unit, problems: @Composable () -> Unit) {
+    if (folder.paused) {
+        Banner(
+            TidefellIcons.Pause,
+            "Syncing of this folder is paused. Changes here are recorded and sent when it resumes.",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+    } else {
+        val look = folderLook(folder)
+        StatusLine(look.icon, folderStateText(folder), look.color, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+    }
+    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LinkChip(TidefellIcons.History, "Activity") { model.go(Page.Activity(folder.id)) }
+        LinkChip(TidefellIcons.Delete, "Recycle bin") { model.go(Page.RecycleBin(folder.id)) }
+        if (PhoneFolders.choice(folder).let { it == SyncChoice.BACKUP_ONLY || it == SyncChoice.TWO_WAY }) {
+            LinkChip(TidefellIcons.Phone, "Clean up", onCleanUp)
+        }
+        problems()
+    }
+}
+
+/** The files that failed to sync, and why; a name this phone cannot store can be renamed. */
+@Composable
+private fun ProblemList(model: HomeModel, folder: Folder, problems: List<PathProblem>) {
+    var renaming by remember { mutableStateOf<PathProblem?>(null) }
+    problems.forEach { problem ->
+        ListItem(
+            leadingContent = {
+                IconTile(TidefellIcons.Error, MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer)
+            },
+            headlineContent = { Text(problem.path) },
+            supportingContent = { Text("${problemText(problem)}\n${problem.message}", color = MaterialTheme.colorScheme.error) },
+            trailingContent = {
+                // A name this phone cannot store can be renamed on all devices (ADR 0033).
+                if (problem.kind == ProblemKind.NAME_NOT_ALLOWED && problem.operation == Operation.WRITE) {
+                    TextButton(onClick = { renaming = problem }) { Text("Rename") }
+                }
+            },
+        )
+    }
+    renaming?.let { problem ->
+        RenameDialog(
+            path = problem.path,
+            onRename = { to ->
+                model.rename(folder.id, problem.path, to)
+                renaming = null
+            },
+            onDismiss = { renaming = null },
+        )
+    }
+}
+
 /**
  * What can be done to one file: remove it from this phone or download it to the phone, and
  * delete it everywhere.
@@ -298,6 +324,7 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = onDismiss,
+            icon = { Icon(TidefellIcons.Delete, contentDescription = null) },
             title = { Text("Delete from all devices?") },
             text = {
                 Text("${file.path} is deleted on every device. Each keeps it in its recycle bin until its retention runs out.")
@@ -306,7 +333,7 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
                 TextButton(onClick = {
                     model.deleteEverywhere(folder.id, file.path)
                     onDismiss()
-                }) { Text("Delete everywhere") }
+                }) { Text("Delete everywhere", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         )
@@ -318,40 +345,49 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
         text = {
             Column {
                 if (file.onDisk) {
-                    TextButton(onClick = {
+                    ActionRow(TidefellIcons.Cloud, "Remove from this phone", onClick = {
                         model.removeHere(folder.id, file.path)
                         onDismiss()
-                    }) { Text("Remove from this phone") }
+                    })
                     if (file.onlyHere) {
                         Text(
                             "No device that keeps everything holds it yet; it stays in this phone's recycle bin.",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 42.dp, bottom = 8.dp),
                         )
                     }
                 } else if (!PhoneFolders.inAppStorage(folder)) {
-                    TextButton(onClick = {
+                    ActionRow(TidefellIcons.Phone, "Download to this phone", onClick = {
                         model.download(folder.id, file.path)
                         onDismiss()
-                    }) { Text("Download to this phone") }
+                    })
                     if (PhoneFolders.choice(folder) != SyncChoice.TWO_WAY) {
                         Text(
                             "This folder only backs up, so later changes from your other devices will not replace this copy.",
                             style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 42.dp, bottom = 8.dp),
                         )
                     }
                 }
                 if (PhoneFolders.inAppStorage(folder)) {
                     // A pinned file is fetched and never removed to save space (ADR 0029).
-                    TextButton(onClick = {
+                    ActionRow(TidefellIcons.Phone, if (file.pinned) "Stop keeping on this phone" else "Keep on this phone", onClick = {
                         if (file.pinned) model.unpin(folder.id, file.path) else model.pin(folder.id, file.path)
                         onDismiss()
-                    }) { Text(if (file.pinned) "Stop keeping on this phone" else "Keep on this phone") }
+                    })
                 }
-                TextButton(onClick = {
+                ActionRow(TidefellIcons.History, "Earlier versions", onClick = {
                     model.go(Page.History(folder.id, file.path))
                     onDismiss()
-                }) { Text("Earlier versions") }
-                TextButton(onClick = { confirmDelete = true }) { Text("Delete from all devices") }
+                })
+                ActionRow(
+                    TidefellIcons.Delete,
+                    "Delete from all devices",
+                    onClick = { confirmDelete = true },
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
@@ -363,12 +399,26 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
 private fun ActivityPage(model: HomeModel) {
     val activity by model.activity.collectAsStateWithLifecycle()
     if (activity.isEmpty()) {
-        Text("Nothing has changed yet.", Modifier.padding(24.dp))
+        EmptyState(TidefellIcons.History, "Nothing has changed yet.")
         return
     }
     LazyColumn {
         items(activity) { change ->
             ListItem(
+                leadingContent = {
+                    when (change.kind) {
+                        ChangeKind.ADDED -> IconTile(TidefellIcons.Add)
+                        ChangeKind.DELETED -> IconTile(TidefellIcons.Delete)
+                        ChangeKind.RESTORED -> IconTile(TidefellIcons.History)
+                        ChangeKind.CONFLICT ->
+                            IconTile(
+                                TidefellIcons.Warning,
+                                MaterialTheme.colorScheme.tertiaryContainer,
+                                MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        ChangeKind.CHANGED, ChangeKind.RENAMED -> IconTile(TidefellIcons.File)
+                    }
+                },
                 headlineContent = { Text(activityText(change)) },
                 supportingContent = {
                     Text(
@@ -376,7 +426,8 @@ private fun ActivityPage(model: HomeModel) {
                             change.timeMs,
                             System.currentTimeMillis(),
                             DateUtils.MINUTE_IN_MILLIS
-                        ).toString()
+                        ).toString(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 },
             )
@@ -423,20 +474,30 @@ private fun RecycleBin(model: HomeModel, folder: Folder) {
     var acting by remember { mutableStateOf<Recycled?>(null) }
     var confirmEmpty by remember { mutableStateOf(false) }
     if (items.isEmpty()) {
-        Text("The recycle bin is empty.", Modifier.padding(24.dp))
+        EmptyState(TidefellIcons.Delete, "The recycle bin is empty.")
         return
     }
-    TextButton(onClick = {
+    OutlinedButton(onClick = {
         confirmEmpty = true
-    }, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Empty recycle bin") }
+    }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Icon(TidefellIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text("Empty recycle bin", Modifier.padding(start = 8.dp))
+    }
     LazyColumn {
         items(items, key = { it.entry }) { item ->
             val size = Formatter.formatShortFileSize(context, item.size.toLong())
             val removed = if (item.hereOnly) "Removed from this phone" else "Deleted"
             val `when` = DateUtils.getRelativeTimeSpanString(item.deletedAtMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS)
             ListItem(
+                leadingContent = {
+                    IconTile(
+                        TidefellIcons.File,
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 headlineContent = { Text(item.path) },
-                supportingContent = { Text("$removed $`when` · $size") },
+                supportingContent = { Text("$removed $`when` · $size", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.clickable { acting = item },
             )
         }
@@ -464,7 +525,7 @@ private fun RecycleBin(model: HomeModel, folder: Folder) {
                 TextButton(onClick = {
                     model.discard(folder.id, item)
                     acting = null
-                }) { Text("Delete for good") }
+                }) { Text("Delete for good", color = MaterialTheme.colorScheme.error) }
             },
         )
     }
@@ -482,7 +543,7 @@ private fun RecycleBin(model: HomeModel, folder: Folder) {
                 TextButton(onClick = {
                     model.emptyRecycleBin(folder.id)
                     confirmEmpty = false
-                }) { Text("Empty") }
+                }) { Text("Empty", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmEmpty = false }) { Text("Cancel") } },
         )
@@ -497,7 +558,7 @@ private fun RenameDialog(path: String, onRename: (String) -> Unit, onDismiss: ()
         onDismissRequest = onDismiss,
         title = { Text("Rename on all devices") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("This phone cannot store this name. Choose one every device can keep.")
                 OutlinedTextField(value = to, onValueChange = { to = it }, singleLine = true)
             }

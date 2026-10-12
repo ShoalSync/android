@@ -7,15 +7,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,17 +44,18 @@ import org.tidefell.ffi.Folder
 fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsModel = viewModel<SettingsViewModel>()) {
     val folders by model.folders.collectAsStateWithLifecycle()
     val errors by model.errors.collectAsStateWithLifecycle()
-    Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        BackgroundSettings(model, hasPhoneFolders = folders.any { !PhoneFolders.inAppStorage(it) })
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        NetworkSettings(model)
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        LimitSettings(model)
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        ReportSettings(model)
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SectionCard("Background sync") {
+            BackgroundSettings(model, hasPhoneFolders = folders.any { !PhoneFolders.inAppStorage(it) })
+        }
+        SectionCard("Network") { NetworkSettings(model) }
+        SectionCard("Speed") { LimitSettings(model) }
+        SectionCard("Crash reports") { ReportSettings(model) }
         folders.forEach { folder ->
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            FolderSettings(model, folder, errors[folder.id])
+            SectionCard(null) { FolderSettings(model, folder, errors[folder.id]) }
         }
     }
 }
@@ -59,11 +63,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsModel = viewMod
 @Composable
 private fun BackgroundSettings(model: SettingsModel, hasPhoneFolders: Boolean) {
     val background by model.background.collectAsStateWithLifecycle()
-    Text("Background sync", style = MaterialTheme.typography.titleMedium)
-    Text(
-        "Folders on this phone also sync when Tidefell is closed: soon after a new photo or video, and every hour.",
-        style = MaterialTheme.typography.bodySmall,
-    )
+    Hint("Folders on this phone also sync when Tidefell is closed: soon after a new photo or video, and every hour.")
     CheckRow("Only on Wi-Fi or other unmetered networks", background.unmeteredOnly) { on ->
         model.setBackground { it.copy(unmeteredOnly = on) }
     }
@@ -74,12 +74,8 @@ private fun BackgroundSettings(model: SettingsModel, hasPhoneFolders: Boolean) {
 @Composable
 private fun NetworkSettings(model: SettingsModel) {
     val localDiscovery by model.localDiscovery.collectAsStateWithLifecycle()
-    Text("Network", style = MaterialTheme.typography.titleMedium)
     CheckRow("Find my devices on this network", localDiscovery, model::setLocalDiscovery)
-    Text(
-        "Your devices on the same Wi-Fi connect directly, even without internet. This phone's device ID is visible on the network.",
-        style = MaterialTheme.typography.bodySmall,
-    )
+    Hint("Your devices on the same Wi-Fi connect directly, even without internet. This phone's device ID is visible on the network.")
 }
 
 @Composable
@@ -88,11 +84,9 @@ private fun LimitSettings(model: SettingsModel) {
     val problem by model.limitsProblem.collectAsStateWithLifecycle()
     var upload by remember(limits) { mutableStateOf(limits.uploadKib.takeIf { it > 0 }?.toString().orEmpty()) }
     var download by remember(limits) { mutableStateOf(limits.downloadKib.takeIf { it > 0 }?.toString().orEmpty()) }
-    Text("Speed", style = MaterialTheme.typography.titleMedium)
-    Text(
+    Hint(
         "Most KiB per second this phone sends to and receives from your other devices. Leave empty for no limit; " +
             "a limit is at least 64.",
-        style = MaterialTheme.typography.bodySmall,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -123,11 +117,9 @@ private fun ReportSettings(model: SettingsModel) {
     val saved by model.reportUrl.collectAsStateWithLifecycle()
     val problem by model.reportUrlProblem.collectAsStateWithLifecycle()
     var url by remember(saved) { mutableStateOf(saved) }
-    Text("Crash reports", style = MaterialTheme.typography.titleMedium)
-    Text(
+    Hint(
         "Where a crash is reported: an issue tracker's issues page. Reporting opens a new issue there, filled in for " +
             "you to read and send. Leave empty to share the report instead.",
-        style = MaterialTheme.typography.bodySmall,
     )
     OutlinedTextField(
         value = url,
@@ -144,10 +136,20 @@ private fun ReportSettings(model: SettingsModel) {
 
 @Composable
 private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = checked, onCheckedChange = onChange)
-        Text(label)
+    Row(
+        Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange).padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = null)
     }
+}
+
+/** A setting's explanation, quieter than the setting. */
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -157,11 +159,18 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
     var confirmRemoving by rememberSaveable { mutableStateOf(false) }
     val choice = PhoneFolders.choice(folder)
 
-    Text(Peer.folderName(folder), style = MaterialTheme.typography.titleMedium)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        IconTile(
+            if (choice == SyncChoice.FILES_ON_DEMAND) TidefellIcons.Cloud else TidefellIcons.Folder,
+            container = MaterialTheme.colorScheme.primaryContainer,
+            content = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(Peer.folderName(folder), style = MaterialTheme.typography.titleMedium)
+    }
     if (choice == SyncChoice.FILES_ON_DEMAND) {
-        Text("${choice.title}. ${choice.summary}", style = MaterialTheme.typography.bodySmall)
+        Hint("${choice.title}. ${choice.summary}")
     } else {
-        Text(folder.path, style = MaterialTheme.typography.bodySmall)
+        Hint(folder.path)
         SyncChoices(choice) { selected ->
             when {
                 selected == choice -> {}
@@ -203,6 +212,7 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
             "${files(folder.onlyHere.toLong())} made on this phone ${if (folder.onlyHere == 1UL) "is" else "are"} not on a " +
                 "device that keeps everything, such as a NAS, yet.",
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     RebuildSettings(model, folder)
@@ -230,9 +240,12 @@ private fun RebuildSettings(model: SettingsModel, folder: Folder) {
             DateUtils.MINUTE_IN_MILLIS,
         )
         val done = if (rebuild.finishedMs == null) "Rebuilding since $at" else "Rebuilt $at"
-        Text("$done, as ${rebuild.reason}.", style = MaterialTheme.typography.bodySmall)
+        Hint("$done, as ${rebuild.reason}.")
     }
-    TextButton(onClick = { confirmRebuilding = true }) { Text("Rebuild this folder") }
+    TextButton(onClick = { confirmRebuilding = true }) {
+        Icon(TidefellIcons.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text("Rebuild this folder", Modifier.padding(start = 8.dp))
+    }
     if (confirmRebuilding) {
         AlertDialog(
             onDismissRequest = { confirmRebuilding = false },

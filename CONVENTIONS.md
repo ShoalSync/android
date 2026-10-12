@@ -34,6 +34,10 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
 - **Screens:** a composable takes its screen's model interface (`ui/Models.kt`), not the view
   model, so screenshot tests can draw it with fixed data. A new screen or state gets a
   screenshot test; see the README.
+- **Look:** colours, type and shapes come from `ui/Theme.kt`, whose palette is the website's;
+  a screen uses theme roles (and `statusColors` for fine or needs-attention states), never a
+  colour of its own. Icons are in `ui/TidefellIcons.kt`, shared pieces such as section cards,
+  banners and empty states in `ui/Components.kt`.
 - **Commits:** Conventional Commits; see [CONTRIBUTING.md](https://github.com/tidefell/tidefell/blob/main/CONTRIBUTING.md).
 
 ## Read first

@@ -10,12 +10,14 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -23,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -171,50 +174,84 @@ fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
         model.showing(true)
         onDispose { model.showing(false) }
     }
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Devices", style = MaterialTheme.typography.titleMedium)
-        if (peers.isEmpty()) Text("This phone does not sync with any other device yet.")
-        peers.forEach { peer ->
-            Column {
-                Text(peer.name ?: peer.device.take(8), style = MaterialTheme.typography.bodyLarge)
-                val seen = peer.lastSeenMs?.takeIf { !peer.connected }?.let { " · last seen ${relative(it)}" }.orEmpty()
-                Text(peerText(peer) + seen, style = MaterialTheme.typography.bodySmall)
+    Column(
+        Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SectionCard("Devices") {
+            if (peers.isEmpty()) Text("This phone does not sync with any other device yet.")
+            peers.forEach { PeerRow(it) }
+        }
+        SectionCard("Transfers") {
+            transfer?.let { t ->
+                Text("${size(context, t.sent)} sent, ${size(context, t.sendRate)}/s now")
+                Text("${size(context, t.received)} received, ${size(context, t.receiveRate)}/s now")
             }
         }
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        Text("Transfers", style = MaterialTheme.typography.titleMedium)
-        transfer?.let { t ->
-            Text("${size(context, t.sent)} sent, ${size(context, t.sendRate)}/s now")
-            Text("${size(context, t.received)} received, ${size(context, t.receiveRate)}/s now")
+        SectionCard("Checks") {
+            checks?.forEach { CheckRow(it) }
+            OutlinedButton(onClick = model::check) { Text(if (checks == null) "Check this phone" else "Check again") }
         }
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        Text("Checks", style = MaterialTheme.typography.titleMedium)
-        OutlinedButton(onClick = model::check) { Text(if (checks == null) "Check this phone" else "Check again") }
-        checks?.forEach { check ->
-            Column {
-                val level = when (check.level) {
-                    CheckLevel.PASS -> "OK"
-                    CheckLevel.WARNING -> "Warning"
-                    CheckLevel.FAILURE -> "Problem"
-                }
-                Text(
-                    "$level: ${check.detail}",
-                    color = if (check.level == CheckLevel.PASS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
-                )
-                check.advice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            }
+        SectionCard("Diagnostics") {
+            Text(
+                "A file describing this phone for a problem report: its settings, status, problems, recent logs and crashes. " +
+                    "File and folder names are replaced by codes. You see what it holds before sharing it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedButton(onClick = model::buildBundle) { Text("Share diagnostics") }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
-        HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        Text("Diagnostics", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "A file describing this phone for a problem report: its settings, status, problems, recent logs and crashes. " +
-                "File and folder names are replaced by codes. You see what it holds before sharing it.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        OutlinedButton(onClick = model::buildBundle) { Text("Share diagnostics") }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
     bundle?.let { BundlePreview(context, it, model::bundleClosed) }
+}
+
+/** A device this phone syncs with, and how it is connected. */
+@Composable
+private fun PeerRow(peer: PeerState) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (peer.connected) {
+            IconTile(TidefellIcons.Devices, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
+        } else {
+            IconTile(TidefellIcons.Devices, MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Column {
+            Text(peer.name ?: peer.device.take(8), style = MaterialTheme.typography.titleSmall)
+            val seen = peer.lastSeenMs?.takeIf { !peer.connected }?.let { " · last seen ${relative(it)}" }.orEmpty()
+            Text(
+                peerText(peer) + seen,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (peer.connected) MaterialTheme.statusColors.ok else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** One of the doctor's checks: passed, a warning or a problem, with what to do. */
+@Composable
+private fun CheckRow(check: Check) {
+    val (icon, color) = when (check.level) {
+        CheckLevel.PASS -> TidefellIcons.Ok to MaterialTheme.statusColors.ok
+        CheckLevel.WARNING -> TidefellIcons.Warning to MaterialTheme.statusColors.attention
+        CheckLevel.FAILURE -> TidefellIcons.Error to MaterialTheme.colorScheme.error
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = 2.dp).size(20.dp))
+        Column {
+            val level = when (check.level) {
+                CheckLevel.PASS -> "OK"
+                CheckLevel.WARNING -> "Warning"
+                CheckLevel.FAILURE -> "Problem"
+            }
+            Text(
+                "$level: ${check.detail}",
+                color = if (check.level == CheckLevel.PASS) MaterialTheme.colorScheme.onSurface else color,
+            )
+            check.advice?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 /** What a diagnostics bundle holds, then the share sheet. */

@@ -1,6 +1,7 @@
 package org.tidefell.android.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +13,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -23,7 +27,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,33 +78,75 @@ fun PairingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Add this phone to your devices", style = MaterialTheme.typography.headlineSmall)
+            BrandMark(64.dp)
+            Text("Add this phone to your devices", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             when (val s = step) {
                 PairingViewModel.Step.Starting -> CircularProgressIndicator()
                 is PairingViewModel.Step.ShowCode -> {
-                    Text("On a device with your user key, scan this code or run:")
-                    Text("tidefell pair <code>", fontFamily = FontFamily.Monospace)
-                    Image(qrCode(s.code), contentDescription = "Pairing code", modifier = Modifier.size(280.dp))
+                    Text(
+                        "On a device with your user key, scan this code or run:",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Code("tidefell pair <code>")
+                    // The code stays dark on white in the dark theme too, for scanners.
+                    Image(
+                        qrCode(s.code),
+                        contentDescription = "Pairing code",
+                        modifier = Modifier.clip(MaterialTheme.shapes.large).background(Color.White).padding(12.dp).size(256.dp),
+                    )
                     SelectionContainer {
-                        Text(s.code, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            s.code,
+                            fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
                 is PairingViewModel.Step.Confirm -> {
-                    Text("${s.approver} wants to add this phone.")
-                    Text("Check that it shows the same code:")
-                    Text("${s.code.take(3)} ${s.code.drop(3)}", style = MaterialTheme.typography.displayMedium)
+                    Text("${s.approver} wants to add this phone.", style = MaterialTheme.typography.titleMedium)
+                    Text("Check that it shows the same code:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Card(
+                        shape = MaterialTheme.shapes.large,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            "${s.code.take(3)} ${s.code.drop(3)}",
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+                        )
+                    }
                 }
                 is PairingViewModel.Step.Join -> {
-                    Text("Paired as ${s.name}.")
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(TidefellIcons.Ok, contentDescription = null, tint = MaterialTheme.statusColors.ok)
+                        Text("Paired as ${s.name}.", style = MaterialTheme.typography.titleMedium)
+                    }
                     if (s.offers.isNotEmpty()) {
-                        Text("Folders you can sync:")
-                        for (candidate in s.offers) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(candidate.name, Modifier.align(Alignment.CenterVertically))
-                                if (candidate.id in joined) {
-                                    Text("Joined", Modifier.align(Alignment.CenterVertically))
-                                } else {
-                                    Button(onClick = { joining = candidate.id }) { Text("Join") }
+                        SectionCard("Folders you can sync") {
+                            for (candidate in s.offers) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    IconTile(
+                                        TidefellIcons.Folder,
+                                        MaterialTheme.colorScheme.primaryContainer,
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(candidate.name, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                                    if (candidate.id in joined) {
+                                        StatusLine(TidefellIcons.Ok, "Joined", MaterialTheme.statusColors.ok)
+                                    } else {
+                                        Button(onClick = { joining = candidate.id }) { Text("Join") }
+                                    }
                                 }
                             }
                         }
@@ -104,10 +154,28 @@ fun PairingScreen(
                     Button(onClick = onPaired) { Text(if (s.offers.isEmpty() || joined.isNotEmpty()) "Continue" else "Not now") }
                 }
                 is PairingViewModel.Step.Failed -> {
-                    Text(s.message)
+                    Banner(
+                        TidefellIcons.Error,
+                        s.message,
+                        error = true,
+                    )
                     Button(onClick = model::retry) { Text("Try again") }
                 }
             }
         }
     }
+}
+
+/** A command to type, set apart from the text around it. */
+@Composable
+private fun Code(text: String) {
+    Text(
+        text,
+        fontFamily = FontFamily.Monospace,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }

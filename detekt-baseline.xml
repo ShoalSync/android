@@ -7,7 +7,6 @@
     <ID>ArgumentListWrapping:TidefellDocumentsProvider.kt$TidefellDocumentsProvider$(file.path)</ID>
     <ID>ArgumentListWrapping:TidefellDocumentsProvider.kt$TidefellDocumentsProvider.Companion$( Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE, Document.COLUMN_SIZE, Document.COLUMN_LAST_MODIFIED, Document.COLUMN_FLAGS, )</ID>
     <ID>ArgumentListWrapping:TidefellDocumentsProvider.kt$TidefellDocumentsProvider.Companion$( Root.COLUMN_ROOT_ID, Root.COLUMN_DOCUMENT_ID, Root.COLUMN_TITLE, Root.COLUMN_SUMMARY, Root.COLUMN_ICON, Root.COLUMN_FLAGS, )</ID>
-    <ID>CyclomaticComplexMethod:HomeScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun FileList(model: HomeModel, folder: Folder)</ID>
     <ID>CyclomaticComplexMethod:HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen( model: HomeModel = viewModel&lt;HomeViewModel&gt;(), settings: @Composable () -&gt; Unit = { SettingsScreen() }, status: @Composable () -&gt; Unit = { StatusPage() }, addFolder: @Composable (onDone: (Folder) -&gt; Unit, onCancel: () -&gt; Unit) -&gt; Unit = { onDone, onCancel -&gt; AddFolderScreen(offer = null, onDone = onDone, onCancel = onCancel) }, )</ID>
     <ID>CyclomaticComplexMethod:StatusScreen.kt$@Composable fun StatusPage(model: StatusModel = viewModel&lt;StatusViewModel&gt;())</ID>
     <ID>ImportOrdering:ExitCriterionTest.kt$import android.os.Environment import android.provider.DocumentsContract import android.util.Log import androidx.test.ext.junit.runners.AndroidJUnit4 import androidx.test.platform.app.InstrumentationRegistry import java.io.File import kotlinx.coroutines.delay import kotlinx.coroutines.runBlocking import kotlinx.coroutines.withTimeout import org.junit.Assert.assertEquals import org.junit.Assert.assertFalse import org.junit.Assert.assertTrue import org.junit.Test import org.junit.runner.RunWith import org.tidefell.android.folders.PhoneFolders import org.tidefell.android.folders.PhoneStorage import org.tidefell.android.folders.SyncChoice import org.tidefell.ffi.Operation import org.tidefell.ffi.Pairing import org.tidefell.ffi.PairingUpdate import org.tidefell.ffi.ProblemKind import org.tidefell.ffi.crashReport import org.tidefell.ffi.crashes import org.tidefell.ffi.dismissCrashes import org.tidefell.ffi.recordCrash</ID>
@@ -21,7 +20,6 @@
     <ID>LongMethod:ExitCriterionTest.kt$ExitCriterionTest$@Test fun pairJoinOpenSaveAndPhoneFolders()</ID>
     <ID>LongMethod:HomeScreen.kt$@Composable private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss: () -&gt; Unit)</ID>
     <ID>LongMethod:HomeScreen.kt$@Composable private fun RecycleBin(model: HomeModel, folder: Folder)</ID>
-    <ID>LongMethod:HomeScreen.kt$@OptIn(ExperimentalFoundationApi::class) @Composable private fun FileList(model: HomeModel, folder: Folder)</ID>
     <ID>LongMethod:HomeScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun HomeScreen( model: HomeModel = viewModel&lt;HomeViewModel&gt;(), settings: @Composable () -&gt; Unit = { SettingsScreen() }, status: @Composable () -&gt; Unit = { StatusPage() }, addFolder: @Composable (onDone: (Folder) -&gt; Unit, onCancel: () -&gt; Unit) -&gt; Unit = { onDone, onCancel -&gt; AddFolderScreen(offer = null, onDone = onDone, onCancel = onCancel) }, )</ID>
     <ID>LongMethod:PairingScreen.kt$@Composable fun PairingScreen( onPaired: () -&gt; Unit, model: PairingModel = viewModel&lt;PairingViewModel&gt;(), joinFolder: @Composable ( offer: FolderOffer, onDone: (Folder) -&gt; Unit, onCancel: () -&gt; Unit, modifier: Modifier ) -&gt; Unit = { offer, onDone, onCancel, modifier -&gt; AddFolderScreen(offer, onDone, onCancel, modifier) }, )</ID>
     <ID>LongMethod:SettingsScreen.kt$@Composable private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)</ID>
@@ -36,8 +34,6 @@
     <ID>MagicNumber:SettingsScreen.kt$7</ID>
     <ID>MagicNumber:StatusScreen.kt$8</ID>
     <ID>MagicNumber:StatusScreen.kt$StatusViewModel$2_000</ID>
-    <ID>MagicNumber:Theme.kt$0xFF0D6E8A</ID>
-    <ID>MagicNumber:Theme.kt$0xFF4FB3CF</ID>
     <ID>MatchingDeclarationName:StatusScreen.kt$StatusViewModel : AndroidViewModelStatusModel</ID>
     <ID>MaxLineLength:HomeScreen.kt$"Restoring puts it back in the folder on this phone. Deleting it for good frees its space here; your other devices keep it."</ID>
     <ID>MaxLineLength:HomeScreen.kt$color = if (file.conflicts &gt; 0u) MaterialTheme.colorScheme.error else androidx.compose.ui.graphics.Color.Unspecified</ID>

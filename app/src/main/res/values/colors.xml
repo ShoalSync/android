@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The same as ui/Theme.kt's light scheme. -->
+    <color name="tidefell_background">#FBFCFD</color>
+    <color name="tidefell_primary">#0D6E8A</color>
+    <color name="tidefell_icon_background">#0D6E8A</color>
+</resources>
