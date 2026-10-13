@@ -5,6 +5,10 @@ style:
     ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 140
+complexity:
+  LongParameterList:
+    # A composable takes its optional look as parameters with defaults, as Compose's own do.
+    ignoreAnnotated: ["Composable"]
 naming:
   FunctionNaming:
     # Compose names composable functions like types.

@@ -35,9 +35,13 @@ import org.tidefell.ffi.VersionKind
 import java.io.File
 import org.tidefell.ffi.File as SyncedFile
 
-/** Fixed data for screenshots. Times are relative to now, so "3 minutes ago" stays the same. */
+/**
+ * Fixed data for screenshots. Times are relative to when a test builds its data, moments before
+ * it draws, so "3 minutes ago" stays the same however long the tests take.
+ */
 object Sample {
-    private val now = System.currentTimeMillis()
+    // Read for each test as it builds its data, so a long run of tests does not age the times.
+    private val now get() = System.currentTimeMillis()
     const val PHONE = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
     const val LAPTOP = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
     const val NAS = "9a8b7c6d5e4f30211203f4e5d6c7b8a99a8b7c6d5e4f30211203f4e5d6c7b8a9"
@@ -92,7 +96,7 @@ object Sample {
     )
 
     /** The camera folder, backed up only. */
-    val camera = folder(
+    val camera get() = folder(
         id = "c".repeat(64),
         path = "/storage/emulated/0/DCIM/Camera",
         sync = backupOnly,
@@ -103,7 +107,7 @@ object Sample {
     )
 
     /** Documents, synced both ways, with a conflict and a problem. */
-    val documents = folder(
+    val documents get() = folder(
         id = "d".repeat(64),
         path = "/storage/emulated/0/Documents",
         conflicts = 1u,
@@ -143,7 +147,7 @@ object Sample {
         authorName = authorName,
     )
 
-    val files = listOf(
+    val files get() = listOf(
         file("Budget 2026.ods", conflicts = 1u, author = LAPTOP, authorName = "Laptop"),
         file("Letters/To the council.odt"),
         file("Notes.md", onlyHere = true),
@@ -152,7 +156,7 @@ object Sample {
         file("名前.txt", onDisk = false, author = LAPTOP, authorName = "Laptop"),
     )
 
-    val problems = listOf(
+    val problems get() = listOf(
         PathProblem(
             path = "Quarterly: Q3?.xlsx",
             operation = Operation.WRITE,
@@ -163,7 +167,7 @@ object Sample {
         ),
     )
 
-    val activity = listOf(
+    val activity get() = listOf(
         Activity(minutesAgo(3), ChangeKind.ADDED, "Tickets.pdf", null, PHONE, "Pixel 8", true),
         Activity(minutesAgo(25), ChangeKind.CHANGED, "Budget 2026.ods", null, LAPTOP, "Laptop", false),
         Activity(minutesAgo(70), ChangeKind.RENAMED, "Letters/To the council.odt", "Letter.odt", LAPTOP, "Laptop", false),
@@ -172,35 +176,35 @@ object Sample {
         Activity(minutesAgo(1000), ChangeKind.RESTORED, "Recipes/Bread.pdf", null, NAS, "NAS", false),
     )
 
-    val recycled = listOf(
+    val recycled get() = listOf(
         Recycled("1".repeat(32), "Old notes.md", 12_000u, minutesAgo(200), daysAhead(29), false, false),
         Recycled("2".repeat(32), "Scans/Receipt.jpg", 2_100_000u, minutesAgo(1300), daysAhead(27), true, false),
     )
 
-    val history = listOf(
+    val history get() = listOf(
         Version("current", VersionKind.CURRENT, 48_000u, minutesAgo(25), LAPTOP, "Laptop", null, null),
         Version("previous:2", VersionKind.PREVIOUS, 46_500u, minutesAgo(400), null, null, minutesAgo(25), daysAhead(29)),
         Version("previous:1", VersionKind.PREVIOUS, 41_000u, minutesAgo(1300), null, null, minutesAgo(400), daysAhead(29)),
     )
 
-    val conflict = listOf(
+    val conflict get() = listOf(
         Version("current", VersionKind.CURRENT, 48_000u, minutesAgo(25), LAPTOP, "Laptop", null, null),
         Version("conflict:1", VersionKind.CONFLICT, 47_200u, minutesAgo(40), PHONE, "Pixel 8", null, null),
     )
 
-    val status = DeviceStatus(PHONE, "f".repeat(64), "Pixel 8", false)
+    val status get() = DeviceStatus(PHONE, "f".repeat(64), "Pixel 8", false)
 
-    val crash = Crash("crash-1", "crash-1.txt", minutesAgo(60), "the scan task panicked: index out of bounds", false)
+    val crash get() = Crash("crash-1", "crash-1.txt", minutesAgo(60), "the scan task panicked: index out of bounds", false)
 
-    val peers = listOf(
+    val peers get() = listOf(
         PeerState(LAPTOP, "Laptop", true, false, 12u, null, null, 40),
         PeerState(NAS, "NAS", true, true, 85u, null, null, -1_200),
         PeerState("7".repeat(64), "Old phone", false, null, null, minutesAgo(900), "timed out", null),
     )
 
-    val transfer = Transfer(1_288_490_188u, 5_368_709_120u, 0u, 2_400_000u)
+    val transfer get() = Transfer(1_288_490_188u, 5_368_709_120u, 0u, 2_400_000u)
 
-    val checks = listOf(
+    val checks get() = listOf(
         Check("clock", CheckLevel.PASS, "Laptop's clock agrees with this device's", null),
         Check("space", CheckLevel.WARNING, "Only 800 MB free on the phone", "Free some space; files cannot be written when it runs out."),
         Check("notifications", CheckLevel.PASS, "Notifications are allowed", null),
@@ -218,7 +222,7 @@ object Sample {
         ),
     )
 
-    val bundle = DiagnosticsBundle(
+    val bundle get() = DiagnosticsBundle(
         "/data/diagnostics.zip",
         listOf(
             DiagnosticsEntry("status.json", "{\n  \"device\": \"a1b2c3d4\",\n  \"folders\": 3,\n  \"paused\": false\n}"),
@@ -226,7 +230,7 @@ object Sample {
         ),
     )
 
-    val offers = listOf(
+    val offers get() = listOf(
         FolderOffer("d".repeat(64), "Documents", listOf(PHONE), 30u),
         FolderOffer("e".repeat(64), "Family photos", listOf(PHONE), 30u),
     )

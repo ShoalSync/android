@@ -2,6 +2,8 @@
   "size": {
     "$type": "dimension",
     "$description": "Sizes of things. 1px is 1dp on Android and 1pt on Apple platforms.",
+    "border": { "$value": { "value": 1, "unit": "px" }, "$description": "A hairline outline, such as a text field's." },
+    "control": { "$value": { "value": 44, "unit": "px" }, "$description": "The least height of something tapped, such as a button or a text field: Apple's and Android's minimum touch target." },
     "content-max": { "$value": { "value": 720, "unit": "px" }, "$description": "The widest a page's content gets, centred, on a tablet or an open foldable." },
     "icon-sm": { "$value": { "value": 16, "unit": "px" }, "$description": "An icon in a line of small text, such as a folder's state." },
     "icon-md": { "$value": { "value": 20, "unit": "px" }, "$description": "An icon in a button or a banner." },

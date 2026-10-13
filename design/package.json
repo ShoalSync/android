@@ -7,6 +7,7 @@
   },
   "license": "AGPL-3.0-only",
   "devDependencies": {
+    "lucide-static": "1.48.0",
     "style-dictionary": "5.5.5"
   },
   "private": true,

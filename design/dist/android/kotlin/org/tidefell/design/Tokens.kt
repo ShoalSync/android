@@ -147,9 +147,9 @@ object TidefellBrand {
 
 /** Corner radii. */
 object TidefellRadius {
-    /** Text fields and menus. */
+    /** Small marks, such as a code's background. */
     val Xs = 6.dp
-    /** Chips, and rows that are tapped. */
+    /** Controls: buttons, text fields, chips and rows that are tapped. */
     val Sm = 10.dp
     /** Choice cards. */
     val Md = 16.dp
@@ -181,6 +181,10 @@ object TidefellSpace {
 
 /** Sizes of things. */
 object TidefellSize {
+    /** A hairline outline, such as a text field's. */
+    val Border = 1.dp
+    /** The least height of something tapped, such as a button or a text field: Apple's and Android's minimum touch target. */
+    val Control = 44.dp
     /** The widest a page's content gets, centred, on a tablet or an open foldable. */
     val ContentMax = 720.dp
     /** An icon in a line of small text, such as a folder's state. */

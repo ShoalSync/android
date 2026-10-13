@@ -5,6 +5,7 @@
 import { copyFile, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import StyleDictionary from 'style-dictionary';
+import { loadIcons } from './icons.mjs';
 
 const here = dirname(new URL(import.meta.url).pathname);
 const dist = join(here, 'dist');
@@ -143,6 +144,61 @@ function kotlin(byTheme) {
   return lines.join('\n');
 }
 
+/** The icons as Compose image vectors, each tinted by the Icon that draws it. */
+function kotlinIcons(icons) {
+  const lines = [
+    `// ${header}`,
+    `package ${kotlinPackage}`,
+    '',
+    'import androidx.compose.ui.graphics.Color',
+    'import androidx.compose.ui.graphics.SolidColor',
+    'import androidx.compose.ui.graphics.StrokeCap',
+    'import androidx.compose.ui.graphics.StrokeJoin',
+    'import androidx.compose.ui.graphics.vector.ImageVector',
+    'import androidx.compose.ui.graphics.vector.addPathNodes',
+    '',
+    '/** The app\'s icons: Lucide\'s (lucide.dev, ISC licence, design/dist/icons/LICENSE-lucide.txt) and Tidefell\'s own. */',
+    'object TidefellIcons {',
+  ];
+  for (const icon of icons) {
+    const name = pascal([icon.name]);
+    const draw = icon.stroked ? 'stroked' : 'filled';
+    lines.push(`    /** ${icon.source}. */`, `    val ${name} = ${draw}(`, `        "${name}",`);
+    if (!icon.stroked) lines.push(`        ${icon.viewport}f,`);
+    for (const path of icon.paths) lines.push(`        "${path}",`);
+    lines.push('    )', '');
+  }
+  lines.pop();
+  lines.push(
+    '}',
+    '',
+    '/** Lucide\'s way: 24 by 24, with 2px strokes and round ends and corners. */',
+    'private fun stroked(name: String, vararg paths: String): ImageVector =',
+    '    ImageVector.Builder(name, TidefellSize.IconLg, TidefellSize.IconLg, LUCIDE_VIEWPORT, LUCIDE_VIEWPORT).apply {',
+    '        for (path in paths) {',
+    '            addPath(',
+    '                addPathNodes(path),',
+    '                stroke = SolidColor(Color.Black),',
+    '                strokeLineWidth = LUCIDE_STROKE,',
+    '                strokeLineCap = StrokeCap.Round,',
+    '                strokeLineJoin = StrokeJoin.Round,',
+    '            )',
+    '        }',
+    '    }.build()',
+    '',
+    '/** An icon of Tidefell\'s own: filled, on a square viewport of its own. */',
+    'private fun filled(name: String, viewport: Float, vararg paths: String): ImageVector =',
+    '    ImageVector.Builder(name, TidefellSize.IconLg, TidefellSize.IconLg, viewport, viewport).apply {',
+    '        for (path in paths) addPath(addPathNodes(path), fill = SolidColor(Color.Black))',
+    '    }.build()',
+    '',
+    'private const val LUCIDE_VIEWPORT = 24f',
+    'private const val LUCIDE_STROKE = 2f',
+    '',
+  );
+  return lines.join('\n');
+}
+
 function androidXml(tokens, keys) {
   const lines = ['<?xml version="1.0" encoding="utf-8"?>', `<!-- ${header} -->`, '<resources>'];
   for (const t of tokens.filter((x) => keys.includes(x.key))) {
@@ -214,6 +270,14 @@ await write(
   androidXml(byTheme.dark, androidResources.filter((k) => k.startsWith('color.'))),
 );
 await write('css/tokens.css', css(byTheme));
+
+const icons = await loadIcons(here);
+await write(`android/kotlin/${kotlinPackage.replaceAll('.', '/')}/Icons.kt`, kotlinIcons(icons));
+// The SVGs for the platforms that draw SVG, such as an asset catalog on Apple platforms.
+for (const icon of icons) await write(`icons/${icon.name}.svg`, icon.svg);
+await mkdir(join(dist, 'icons'), { recursive: true });
+await copyFile(join(here, 'node_modules/lucide-static/LICENSE'), join(dist, 'icons/LICENSE-lucide.txt'));
+console.log('dist/icons/LICENSE-lucide.txt');
 await mkdir(join(dist, 'android/res/font'), { recursive: true });
 await copyFile(join(here, 'fonts/InterVariable.ttf'), join(dist, 'android/res/font/inter.ttf'));
 console.log('dist/android/res/font/inter.ttf');

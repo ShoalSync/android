@@ -19,9 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +46,7 @@ import org.json.JSONObject
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Check
@@ -195,7 +194,7 @@ fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
         }
         SectionCard("Checks") {
             checks?.forEach { CheckRow(it) }
-            OutlinedButton(onClick = model::check) { Text(if (checks == null) "Check this phone" else "Check again") }
+            ActionButton(if (checks == null) "Check this phone" else "Check again", onClick = model::check)
         }
         SectionCard("Diagnostics") {
             Text(
@@ -204,7 +203,7 @@ fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(onClick = model::buildBundle) { Text("Share diagnostics") }
+            ActionButton("Share diagnostics", onClick = model::buildBundle)
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
     }
@@ -278,12 +277,16 @@ private fun BundlePreview(context: Context, bundle: DiagnosticsBundle, onDismiss
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                share(context, File(bundle.path))
-                onDismiss()
-            }) { Text("Share") }
+            ActionButton(
+                "Share",
+                onClick = {
+                    share(context, File(bundle.path))
+                    onDismiss()
+                },
+                kind = ButtonKind.Quiet,
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { ActionButton("Cancel", onClick = onDismiss, kind = ButtonKind.Quiet) },
     )
 }
 

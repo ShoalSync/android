@@ -2,8 +2,8 @@
   "radius": {
     "$type": "dimension",
     "$description": "Corner radii. 1px is 1dp on Android and 1pt on Apple platforms.",
-    "xs": { "$value": { "value": 6, "unit": "px" }, "$description": "Text fields and menus." },
-    "sm": { "$value": { "value": 10, "unit": "px" }, "$description": "Chips, and rows that are tapped." },
+    "xs": { "$value": { "value": 6, "unit": "px" }, "$description": "Small marks, such as a code's background." },
+    "sm": { "$value": { "value": 10, "unit": "px" }, "$description": "Controls: buttons, text fields, chips and rows that are tapped." },
     "md": { "$value": { "value": 16, "unit": "px" }, "$description": "Choice cards." },
     "lg": { "$value": { "value": 20, "unit": "px" }, "$description": "Section cards and banners." },
     "xl": { "$value": { "value": 28, "unit": "px" }, "$description": "Dialogs." }

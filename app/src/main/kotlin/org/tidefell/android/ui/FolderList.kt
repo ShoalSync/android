@@ -1,8 +1,8 @@
 package org.tidefell.android.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,27 +11,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
-
-/** Room after the last folder for the add folder button: its 56dp, and its margins. */
-private val AddButtonRoom = 96.dp
 
 /** Pausing syncing on the whole phone (ADR 0029). */
 @Composable
@@ -44,25 +40,24 @@ private fun DevicePause(model: HomeModel) {
             "Syncing is paused on this phone. Changes here are recorded and sent when it resumes.",
             modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
             action = {
-                FilledTonalButton(onClick = { model.resume(null) }) {
-                    Icon(TidefellIcons.Play, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
-                    Text("Resume syncing", Modifier.padding(start = TidefellSpace.Sm))
-                }
+                ActionButton("Resume syncing", onClick = { model.resume(null) }, icon = TidefellIcons.Play)
             },
         )
     } else {
-        TextButton(onClick = { model.pause(null) }, modifier = Modifier.padding(horizontal = TidefellSpace.Sm)) {
-            Icon(TidefellIcons.Pause, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
-            Text("Pause syncing on this phone", Modifier.padding(start = TidefellSpace.Sm))
-        }
+        ActionButton(
+            "Pause syncing on this phone",
+            onClick = { model.pause(null) },
+            kind = ButtonKind.Quiet,
+            icon = TidefellIcons.Pause,
+            modifier = Modifier.padding(horizontal = TidefellSpace.Sm),
+        )
     }
 }
 
 /** The home page: every folder, with notices about the app and the phone above them. */
 @Composable
 fun FolderList(model: HomeModel, folders: List<Folder>, onOpen: (Folder) -> Unit) {
-    // Room at the end, so the add folder button does not cover the last folder.
-    LazyColumn(contentPadding = PaddingValues(bottom = AddButtonRoom)) {
+    LazyColumn {
         item { CrashNotice(model) }
         item { DevicePause(model) }
         if (folders.isEmpty()) {
@@ -78,9 +73,12 @@ private fun FolderCard(folder: Folder, onClick: () -> Unit) {
     val choice = PhoneFolders.choice(folder)
     val look = folderLook(folder)
     Card(
-        onClick = onClick,
         // Half the space between cards above and below each, so they are TidefellSpace.Md apart.
-        modifier = Modifier.fillMaxWidth().padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Md / 2),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Md / 2)
+            .clip(MaterialTheme.shapes.large)
+            .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {

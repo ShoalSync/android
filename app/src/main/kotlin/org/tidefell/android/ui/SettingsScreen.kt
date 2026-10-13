@@ -10,16 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,7 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
-import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
 
@@ -69,7 +63,7 @@ private fun BackgroundSettings(model: SettingsModel, hasPhoneFolders: Boolean) {
         model.setBackground { it.copy(unmeteredOnly = on) }
     }
     CheckRow("Only while charging", background.chargingOnly) { on -> model.setBackground { it.copy(chargingOnly = on) } }
-    if (hasPhoneFolders) OutlinedButton(onClick = model::syncNow) { Text("Sync now") }
+    if (hasPhoneFolders) ActionButton("Sync now", onClick = model::syncNow)
 }
 
 @Composable
@@ -90,26 +84,26 @@ private fun LimitSettings(model: SettingsModel) {
             "a limit is at least 64.",
     )
     Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-        OutlinedTextField(
+        Field(
             value = upload,
             onValueChange = { upload = it.filter(Char::isDigit).take(7) },
-            label = { Text("Upload") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            label = "Upload",
+            placeholder = "No limit",
+            keyboardType = KeyboardType.Number,
             modifier = Modifier.weight(1f),
         )
-        OutlinedTextField(
+        Field(
             value = download,
             onValueChange = { download = it.filter(Char::isDigit).take(7) },
-            label = { Text("Download") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            label = "Download",
+            placeholder = "No limit",
+            keyboardType = KeyboardType.Number,
             modifier = Modifier.weight(1f),
         )
     }
     CheckRow("Limit devices on this network too", limits.limitLocal) { on -> model.setLimits(limits.copy(limitLocal = on)) }
     val wanted = limits.copy(uploadKib = upload.toLongOrNull() ?: 0, downloadKib = download.toLongOrNull() ?: 0)
-    TextButton(enabled = wanted != limits, onClick = { model.setLimits(wanted) }) { Text("Save") }
+    ActionButton("Save", onClick = { model.setLimits(wanted) }, kind = ButtonKind.Quiet, enabled = wanted != limits)
     problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
@@ -122,16 +116,15 @@ private fun ReportSettings(model: SettingsModel) {
         "Where a crash is reported: an issue tracker's issues page. Reporting opens a new issue there, filled in for " +
             "you to read and send. Leave empty to share the report instead.",
     )
-    OutlinedTextField(
+    Field(
         value = url,
         onValueChange = { url = it },
-        label = { Text("Issue tracker") },
-        placeholder = { Text("https://github.com/owner/repo/issues") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-        singleLine = true,
+        label = "Issue tracker",
+        placeholder = "https://github.com/owner/repo/issues",
+        keyboardType = KeyboardType.Uri,
         modifier = Modifier.fillMaxWidth(),
     )
-    TextButton(enabled = url.trim() != saved, onClick = { model.setReportUrl(url) }) { Text("Save") }
+    ActionButton("Save", onClick = { model.setReportUrl(url) }, kind = ButtonKind.Quiet, enabled = url.trim() != saved)
     problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
@@ -146,7 +139,7 @@ private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
         horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = null)
+        Toggle(checked)
     }
 }
 
@@ -185,19 +178,20 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
     }
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-        OutlinedTextField(
+        Field(
             value = days,
             onValueChange = { days = it.filter(Char::isDigit).take(5) },
-            label = { Text("Keep deleted files (days)") },
-            supportingText = { Text("On this phone only. 0 keeps them forever.") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            label = "Keep deleted files (days)",
+            help = "On this phone only. 0 keeps them forever.",
+            keyboardType = KeyboardType.Number,
             modifier = Modifier.weight(1f),
         )
-        TextButton(
-            enabled = days.toUIntOrNull()?.let { it != folder.retentionDays } == true,
+        ActionButton(
+            "Save",
             onClick = { model.setRetention(folder.id, days.toUInt()) },
-        ) { Text("Save") }
+            kind = ButtonKind.Quiet,
+            enabled = days.toUIntOrNull()?.let { it != folder.retentionDays } == true,
+        )
     }
 
     val summary = if (folder.recycledFiles == 0UL) {
@@ -246,10 +240,12 @@ private fun RebuildSettings(model: SettingsModel, folder: Folder) {
         val done = if (rebuild.finishedMs == null) "Rebuilding since $at" else "Rebuilt $at"
         Hint("$done, as ${rebuild.reason}.")
     }
-    TextButton(onClick = { confirmRebuilding = true }) {
-        Icon(TidefellIcons.Sync, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
-        Text("Rebuild this folder", Modifier.padding(start = TidefellSpace.Sm))
-    }
+    ActionButton(
+        "Rebuild this folder",
+        onClick = { confirmRebuilding = true },
+        kind = ButtonKind.Quiet,
+        icon = TidefellIcons.Sync,
+    )
     if (confirmRebuilding) {
         AlertDialog(
             onDismissRequest = { confirmRebuilding = false },
@@ -262,12 +258,16 @@ private fun RebuildSettings(model: SettingsModel, folder: Folder) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmRebuilding = false
-                    model.rebuild(folder.id)
-                }) { Text("Rebuild") }
+                ActionButton(
+                    "Rebuild",
+                    onClick = {
+                        confirmRebuilding = false
+                        model.rebuild(folder.id)
+                    },
+                    kind = ButtonKind.Quiet,
+                )
             },
-            dismissButton = { TextButton(onClick = { confirmRebuilding = false }) { Text("Cancel") } },
+            dismissButton = { ActionButton("Cancel", onClick = { confirmRebuilding = false }, kind = ButtonKind.Quiet) },
         )
     }
 }

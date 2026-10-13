@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -28,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
@@ -196,16 +195,6 @@ fun folderLook(folder: Folder): FolderLook {
         folder.state == FolderState.IDLE -> FolderLook(TidefellIcons.Ok, status.ok)
         else -> FolderLook(TidefellIcons.Sync, colors.primary)
     }
-}
-
-/** A way into one of a folder's pages, or an action on it. */
-@Composable
-fun LinkChip(icon: ImageVector, label: String, onClick: () -> Unit) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize)) },
-    )
 }
 
 /** How round a tile's corners are, and how much of it its icon fills, as fractions of its size. */

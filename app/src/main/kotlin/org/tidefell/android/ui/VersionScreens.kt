@@ -15,15 +15,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +35,7 @@ import kotlinx.coroutines.launch
 import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
 import org.tidefell.android.folders.PhoneFolders
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Crash
@@ -51,7 +49,6 @@ import java.io.File
 @Composable
 fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val versions by model.versions.collectAsStateWithLifecycle()
     var restoring by remember { mutableStateOf<Version?>(null) }
     val earlier = versions.filter { it.kind == VersionKind.PREVIOUS }
@@ -81,30 +78,44 @@ fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
             )
         }
     }
-    restoring?.let { version ->
-        AlertDialog(
-            onDismissRequest = { restoring = null },
-            title = { Text("Restore this version?") },
-            text = {
-                Text(
-                    "$path changes back to the version modified ${relative(
-                        version.modifiedMs
-                    )} on all your devices. The current one is kept as an earlier version."
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
+    restoring?.let { version -> RestoreDialog(model, folder, path, version) { restoring = null } }
+}
+
+/** Asks before restoring [version] of [path], or opens it to look first. */
+@Composable
+private fun RestoreDialog(model: HomeModel, folder: Folder, path: String, version: Version, onDone: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = onDone,
+        title = { Text("Restore this version?") },
+        text = {
+            Text(
+                "$path changes back to the version modified ${relative(
+                    version.modifiedMs
+                )} on all your devices. The current one is kept as an earlier version."
+            )
+        },
+        confirmButton = {
+            ActionButton(
+                "Restore",
+                onClick = {
                     model.restoreVersion(folder.id, path, version)
-                    restoring = null
-                }) { Text("Restore") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
+                    onDone()
+                },
+                kind = ButtonKind.Quiet,
+            )
+        },
+        dismissButton = {
+            ActionButton(
+                "Open",
+                onClick = {
                     scope.launch { open(context, model, folder, path, version) }
-                }) { Text("Open") }
-            },
-        )
-    }
+                },
+                kind = ButtonKind.Quiet,
+            )
+        },
+    )
 }
 
 /**
@@ -121,7 +132,7 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                 Text(path, style = MaterialTheme.typography.titleMedium)
                 if (waiting.size < 2) {
                     Text("There is nothing to decide: this file has one version now.")
-                    OutlinedButton(onClick = onLater) { Text("Back") }
+                    ActionButton("Back", onClick = onLater)
                 } else {
                     Banner(
                         TidefellIcons.Warning,
@@ -145,8 +156,8 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-                        OutlinedButton(onClick = { model.resolve(folder.id, path, "both") }) { Text("Keep both") }
-                        TextButton(onClick = onLater) { Text("Decide later") }
+                        ActionButton("Keep both", onClick = { model.resolve(folder.id, path, "both") })
+                        ActionButton("Decide later", onClick = onLater, kind = ButtonKind.Quiet)
                     }
                 }
             }
@@ -174,8 +185,8 @@ private fun ConflictVersion(model: HomeModel, folder: Folder, path: String, vers
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-            OutlinedButton(onClick = { scope.launch { open(context, model, folder, path, version) } }) { Text("Open") }
-            Button(onClick = { model.resolve(folder.id, path, version.id) }) { Text("Keep this one") }
+            ActionButton("Open", onClick = { scope.launch { open(context, model, folder, path, version) } })
+            ActionButton("Keep this one", onClick = { model.resolve(folder.id, path, version.id) }, kind = ButtonKind.Primary)
         }
     }
 }
@@ -213,10 +224,10 @@ fun CrashNotice(model: HomeModel) {
             }
             Text(crashed ?: newest!!.message, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-                if (crashed != null) OutlinedButton(onClick = model::restart) { Text("Start syncing again") }
+                if (crashed != null) ActionButton("Start syncing again", onClick = model::restart)
                 if (newest != null) {
-                    TextButton(onClick = { report(context, newest) }) { Text("Report") }
-                    TextButton(onClick = model::dismissCrashes) { Text("Dismiss") }
+                    ActionButton("Report", onClick = { report(context, newest) }, kind = ButtonKind.Quiet)
+                    ActionButton("Dismiss", onClick = model::dismissCrashes, kind = ButtonKind.Quiet)
                 }
             }
         }

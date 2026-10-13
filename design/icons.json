@@ -1,0 +1,22 @@
+{
+  "$description": "The app's icons: each name, as the platforms spell it, and the Lucide icon (lucide.dev) drawn for it. An SVG in icons/ is one of Tidefell's own, such as the wave.",
+  "lucide": {
+    "back": "arrow-left",
+    "add": "plus",
+    "folder": "folder",
+    "file": "file",
+    "pause": "pause",
+    "play": "play",
+    "ok": "circle-check",
+    "warning": "triangle-alert",
+    "error": "circle-alert",
+    "sync": "refresh-cw",
+    "cloud": "cloud",
+    "phone": "smartphone",
+    "devices": "monitor-smartphone",
+    "delete": "trash",
+    "history": "rotate-ccw-clock",
+    "chevron-right": "chevron-right",
+    "settings": "settings"
+  }
+}

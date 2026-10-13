@@ -18,7 +18,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,10 +25,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -47,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
@@ -96,10 +94,12 @@ fun AddFolderScreen(
                     "To sync a folder on this phone, Tidefell needs access to all files. It reads and " +
                         "writes only the folders you add.",
                 )
-                Button(onClick = { context.startActivity(PhoneStorage.accessIntent(context)) }) {
-                    Text("Allow access to all files")
-                }
-                OutlinedButton(onClick = cancelled) { Text("Cancel") }
+                ActionButton(
+                    "Allow access to all files",
+                    onClick = { context.startActivity(PhoneStorage.accessIntent(context)) },
+                    kind = ButtonKind.Primary,
+                )
+                ActionButton("Cancel", onClick = cancelled)
             }
             is AddFolderViewModel.Step.Pick -> PickStep(s, model)
             is AddFolderViewModel.Step.Choose -> ChooseStep(s.dir, model)
@@ -111,8 +111,8 @@ fun AddFolderScreen(
                     s.message,
                     error = true,
                 )
-                Button(onClick = { model.start(offer, again = true) }) { Text("Try again") }
-                OutlinedButton(onClick = cancelled) { Text("Cancel") }
+                ActionButton("Try again", onClick = { model.start(offer, again = true) }, kind = ButtonKind.Primary)
+                ActionButton("Cancel", onClick = cancelled)
             }
         }
     }
@@ -139,8 +139,7 @@ private fun PlaceStep(model: AddFolderModel) {
 @Composable
 private fun PlaceCard(icon: ImageVector, title: String, summary: String, onClick: () -> Unit) {
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
@@ -183,8 +182,8 @@ private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderModel) 
     }
     Text(dir.path, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
     Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
-        Button(onClick = { model.choose(dir) }) { Text("Use this folder") }
-        OutlinedButton(onClick = { model.up() }) { Text("Up") }
+        ActionButton("Use this folder", onClick = { model.choose(dir) }, kind = ButtonKind.Primary)
+        ActionButton("Up", onClick = { model.up() })
     }
     HorizontalDivider()
     if (step.subfolders.isEmpty()) {
@@ -209,9 +208,13 @@ private fun ChooseStep(dir: File, model: AddFolderModel) {
         Text(dir.path, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         Text("How should it sync?", style = MaterialTheme.typography.titleMedium)
         SyncChoices(choice) { choice = it }
-        Button(onClick = {
-            if (choice == SyncChoice.REMOVE_AFTER_BACKUP) confirmRemoving = true else model.add(dir, choice)
-        }) { Text("Add folder") }
+        ActionButton(
+            "Add folder",
+            onClick = {
+                if (choice == SyncChoice.REMOVE_AFTER_BACKUP) confirmRemoving = true else model.add(dir, choice)
+            },
+            kind = ButtonKind.Primary,
+        )
     }
     if (confirmRemoving) {
         ConfirmRemoveAfterBackup(
@@ -241,7 +244,7 @@ fun SyncChoices(selected: SyncChoice, onSelect: (SyncChoice) -> Unit) {
                 Modifier.fillMaxWidth().selectable(selected = chosen, onClick = { onSelect(choice) }).padding(TidefellSpace.Md),
                 verticalAlignment = Alignment.Top,
             ) {
-                RadioButton(selected = chosen, onClick = null)
+                RadioMark(chosen)
                 Column(Modifier.padding(start = TidefellSpace.Md), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Xxs)) {
                     Text(choice.title, style = MaterialTheme.typography.titleSmall)
                     Text(choice.summary, style = MaterialTheme.typography.bodySmall)
@@ -265,8 +268,8 @@ fun ConfirmRemoveAfterBackup(onConfirm: () -> Unit, onDismiss: () -> Unit) {
                     "Files already in the folder are not affected.",
             )
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Turn on") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { ActionButton("Turn on", onClick = onConfirm, kind = ButtonKind.Quiet) },
+        dismissButton = { ActionButton("Cancel", onClick = onDismiss, kind = ButtonKind.Quiet) },
     )
 }
 
@@ -286,10 +289,13 @@ private fun DoneStep(folder: Folder, joined: Boolean, onDone: (Folder) -> Unit) 
         Text("To sync it with another device, join it there with this folder ID:")
         SelectionContainer { Text(folder.id, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
         Text("tidefell folder join ${folder.id} <path>", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = {
-            context.getSystemService(ClipboardManager::class.java)
-                .setPrimaryClip(ClipData.newPlainText("Folder ID", folder.id))
-        }) { Text("Copy folder ID") }
+        ActionButton(
+            "Copy folder ID",
+            onClick = {
+                context.getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText("Folder ID", folder.id))
+            },
+        )
     }
-    Button(onClick = { onDone(folder) }) { Text("Done") }
+    ActionButton("Done", onClick = { onDone(folder) }, kind = ButtonKind.Primary)
 }

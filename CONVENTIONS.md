@@ -38,14 +38,17 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
   model, so screenshot tests can draw it with fixed data. A new screen or state gets a
   screenshot test, and a new page a large-screen one too; see the README. A page's content
   uses `Modifier.pageWidth()`, so it stays readable on tablets and open foldables.
-- **Look:** colours, type, spacing, sizes and corner radii are design tokens in `design/`,
-  shared with the website and, later, the Apple apps; change them there
-  ([design/README.md](design/README.md)), never in Kotlin or resources. `ui/Theme.kt` gives
-  the colours, text styles and radii to Material. A screen uses theme roles (and
-  `statusColors` for fine or needs-attention states), never a colour of its own, and
-  `TidefellSpace` and `TidefellSize` rather than a number of dp; a size that belongs to one
-  screen, such as the QR code's, is a named value there. Icons are in `ui/TidefellIcons.kt`,
-  shared pieces such as section cards, banners and empty states in `ui/Components.kt`.
+- **Look:** colours, type, spacing, sizes, corner radii and icons are design tokens in
+  `design/`, shared with the website and, later, the Apple apps; change them there
+  ([design/README.md](design/README.md)), never in Kotlin or resources. `ui/Theme.kt` gives the
+  colours, text styles and radii to Material. A screen uses theme roles (and `statusColors` for
+  fine or needs-attention states), never a colour of its own, and `TidefellSpace` and
+  `TidefellSize` rather than a number of dp; a size that belongs to one screen, such as the QR
+  code's, is a named value there. Icons are `TidefellIcons`, Lucide's as named in
+  `design/icons.json`; controls (`Field`, `Toggle`, `ActionButton`, `Chip`, `RadioMark`,
+  `IconAction`) are Tidefell's own, in `ui/Controls.kt`, never Material's; a press shades what
+  is pressed rather than rippling. Shared pieces such as section cards, banners and empty states
+  are in `ui/Components.kt`.
 - **Commits:** Conventional Commits; see [CONTRIBUTING.md](https://github.com/tidefell/tidefell/blob/main/CONTRIBUTING.md).
 
 ## Read first

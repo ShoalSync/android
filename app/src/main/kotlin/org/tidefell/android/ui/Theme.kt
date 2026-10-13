@@ -1,8 +1,10 @@
 package org.tidefell.android.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
@@ -162,6 +164,12 @@ private val TidefellShapes = Shapes(
 fun TidefellTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val colors: ColorScheme = if (dark) DarkColors else LightColors
     CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus) {
-        MaterialTheme(colorScheme = colors, typography = TidefellTypography, shapes = TidefellShapes, content = content)
+        MaterialTheme(colorScheme = colors, typography = TidefellTypography, shapes = TidefellShapes) {
+            CompositionLocalProvider(
+                LocalIndication provides PressIndication(colors.onSurface),
+                LocalRippleConfiguration provides null,
+                content = content,
+            )
+        }
     }
 }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSize
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
@@ -149,13 +149,17 @@ fun PairingScreen(
                                     if (candidate.id in joined) {
                                         StatusLine(TidefellIcons.Ok, "Joined", MaterialTheme.statusColors.ok)
                                     } else {
-                                        Button(onClick = { joining = candidate.id }) { Text("Join") }
+                                        ActionButton("Join", onClick = { joining = candidate.id }, kind = ButtonKind.Primary)
                                     }
                                 }
                             }
                         }
                     }
-                    Button(onClick = onPaired) { Text(if (s.offers.isEmpty() || joined.isNotEmpty()) "Continue" else "Not now") }
+                    ActionButton(
+                        if (s.offers.isEmpty() || joined.isNotEmpty()) "Continue" else "Not now",
+                        onClick = onPaired,
+                        kind = ButtonKind.Primary,
+                    )
                 }
                 is PairingViewModel.Step.Failed -> {
                     Banner(
@@ -163,7 +167,7 @@ fun PairingScreen(
                         s.message,
                         error = true,
                     )
-                    Button(onClick = model::retry) { Text("Try again") }
+                    ActionButton("Try again", onClick = model::retry, kind = ButtonKind.Primary)
                 }
             }
         }
