@@ -109,6 +109,9 @@ private fun FolderCard(folder: Folder, onClick: () -> Unit) {
                         MaterialTheme.statusColors.attention,
                     )
                 }
+                if (folder.heldDeletes > 0UL) {
+                    StatusLine(TidefellIcons.Delete, heldDeletesLine(folder.heldDeletes), MaterialTheme.statusColors.attention)
+                }
             }
             Icon(
                 TidefellIcons.ChevronRight,

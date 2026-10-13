@@ -26,7 +26,7 @@ fun folderStateText(folder: Folder): String {
             val waitingFor = if (folder.rebuild?.waitingFor.isNullOrEmpty()) "a device sharing it to connect" else "your other devices"
             "Rebuilding: waiting for $waitingFor"
         }
-        FolderState.ERROR -> "Not syncing: ${folder.error ?: "an error"}"
+        FolderState.ERROR -> "Not syncing: ${whyNotSyncing(folder)}"
     }
     val pending = if (folder.pendingFiles > 0UL && folder.state != FolderState.ERROR) {
         ": ${files(folder.pendingFiles.toLong())} to fetch"
@@ -34,7 +34,28 @@ fun folderStateText(folder: Folder): String {
         ""
     }
     val problems = if (folder.problems > 0UL) " · ${files(folder.problems.toLong())} with problems" else ""
-    return state + pending + problems
+    val lowSpace = if (folder.lowSpace != null && folder.state != FolderState.ERROR) " · downloads paused, low on space" else ""
+    return state + pending + problems + lowSpace
+}
+
+/**
+ * Why a folder in error does not sync. An unavailable one's root is missing, such as on an SD
+ * card that is not mounted, and its banner says why (ADR 0037).
+ */
+private fun whyNotSyncing(folder: Folder): String =
+    if (folder.unavailable != null) "storage not available" else folder.error ?: "an error"
+
+/** Deletes a scan found and held for a decision (ADR 0037): "120 files deleted here need a decision". */
+fun heldDeletesLine(count: ULong): String =
+    "${files(count.toLong())} deleted here ${if (count == 1UL) "needs" else "need"} a decision"
+
+/** Why a folder's held deletes wait, and what the choices do (ADR 0037). */
+fun heldDeletesText(count: ULong): String {
+    val one = count == 1UL
+    return "${files(count.toLong())} ${if (one) "was" else "were"} deleted here at once, so " +
+        "${if (one) "the delete waits" else "the deletes wait"} for you. Delete ${if (one) "it" else "them"} " +
+        "on all your devices, where each keeps ${if (one) "it" else "them"} in its recycle bin, or restore " +
+        "${if (one) "it" else "them"} from your other devices."
 }
 
 /** What failed for a path and why, such as "Write: permission denied". */

@@ -291,6 +291,7 @@ private fun FolderHeader(model: HomeModel, folder: Folder, onCleanUp: () -> Unit
             Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Xs),
         )
     }
+    FolderNotices(model, folder)
     FlowRow(Modifier.padding(horizontal = TidefellSpace.Lg), horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         Chip("Activity", onClick = { model.go(Page.Activity(folder.id)) }, icon = TidefellIcons.History)
         Chip("Recycle bin", onClick = { model.go(Page.RecycleBin(folder.id)) }, icon = TidefellIcons.Delete)
@@ -305,6 +306,16 @@ private fun FolderHeader(model: HomeModel, folder: Folder, onCleanUp: () -> Unit
 @Composable
 private fun ProblemList(model: HomeModel, folder: Folder, problems: List<PathProblem>) {
     var renaming by remember { mutableStateOf<PathProblem?>(null) }
+    // A write or delete that failed in a lasting way, such as permission denied, is not tried
+    // again until the file changes or this asks for it (ADR 0037).
+    if (problems.any { it.operation == Operation.WRITE || it.operation == Operation.DELETE }) {
+        ActionButton(
+            "Try again",
+            onClick = { model.retryProblems(folder.id) },
+            modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Xs),
+            icon = TidefellIcons.Sync,
+        )
+    }
     problems.forEach { problem ->
         ListItem(
             leadingContent = {

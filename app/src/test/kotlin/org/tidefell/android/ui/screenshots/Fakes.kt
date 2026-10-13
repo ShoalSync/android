@@ -71,6 +71,9 @@ object Sample {
         recycledFiles: ULong = 0u,
         onlyHere: ULong = 0u,
         rebuild: Rebuild? = null,
+        unavailable: String? = null,
+        heldDeletes: ULong = 0u,
+        lowSpace: String? = null,
     ) = Folder(
         id = id,
         path = path,
@@ -93,6 +96,9 @@ object Sample {
         peers = emptyList(),
         problems = problems,
         rebuild = rebuild,
+        unavailable = unavailable,
+        heldDeletes = heldDeletes,
+        lowSpace = lowSpace,
     )
 
     /** The camera folder, backed up only. */
@@ -166,6 +172,10 @@ object Sample {
             attempts = 3u,
         ),
     )
+
+    /** A scan's held deletes (ADR 0037). */
+    val heldDeletes =
+        listOf("Scans/2026-01-04.pdf", "Scans/2026-02-11.pdf", "Scans/2026-03-19.pdf", "Scans/Receipt.jpg")
 
     val activity get() = listOf(
         Activity(minutesAgo(3), ChangeKind.ADDED, "Tickets.pdf", null, PHONE, "Pixel 8", true),
@@ -243,6 +253,7 @@ class FakeHome(page: Page = Page.Folders) : HomeModel {
     override val folders = MutableStateFlow(Sample.folders)
     override val files = MutableStateFlow(Sample.files)
     override val problems = MutableStateFlow(Sample.problems)
+    override val heldDeletes = MutableStateFlow(Sample.heldDeletes)
     override val activity = MutableStateFlow(Sample.activity)
     override val recycleBin = MutableStateFlow(Sample.recycled)
     override val versions = MutableStateFlow(Sample.history)
@@ -283,6 +294,9 @@ class FakeHome(page: Page = Page.Folders) : HomeModel {
     override fun unpin(folder: String, path: String) = Unit
     override fun restoreVersion(folder: String, path: String, version: Version) = Unit
     override fun resolve(folder: String, path: String, keep: String) = Unit
+    override fun confirmDeletes(folder: String) = Unit
+    override fun restoreDeleted(folder: String) = Unit
+    override fun retryProblems(folder: String) = Unit
     override suspend fun openVersion(folder: String, path: String, version: Version): String = ""
     override fun dismissCrashes() = Unit
     override fun restart() = Unit

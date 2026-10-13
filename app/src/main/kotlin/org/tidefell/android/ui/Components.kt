@@ -183,14 +183,18 @@ fun ActionRow(
 /** How a folder's state looks: its icon and colour. */
 data class FolderLook(val icon: ImageVector, val color: Color)
 
-/** A folder in error is red, one with problems or decisions to make amber, one that is fine green. */
+/**
+ * A folder in error or unavailable is red, one with problems, decisions to make or low on space
+ * amber, one that is fine green.
+ */
 @Composable
 fun folderLook(folder: Folder): FolderLook {
     val colors = MaterialTheme.colorScheme
     val status = MaterialTheme.statusColors
+    val attention = folder.problems > 0UL || folder.conflicts > 0UL || folder.heldDeletes > 0UL || folder.lowSpace != null
     return when {
         folder.state == FolderState.ERROR -> FolderLook(TidefellIcons.Error, colors.error)
-        folder.problems > 0UL || folder.conflicts > 0UL -> FolderLook(TidefellIcons.Warning, status.attention)
+        attention -> FolderLook(TidefellIcons.Warning, status.attention)
         folder.state == FolderState.PAUSED -> FolderLook(TidefellIcons.Pause, colors.onSurfaceVariant)
         folder.state == FolderState.IDLE -> FolderLook(TidefellIcons.Ok, status.ok)
         else -> FolderLook(TidefellIcons.Sync, colors.primary)

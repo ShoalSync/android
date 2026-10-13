@@ -106,6 +106,15 @@ class HomeViewModel : ViewModel(), HomeModel {
         (current.value as? Page.Files)?.let { node.pathProblems(it.folder) } ?: emptyList()
     }
 
+    /** The open folder's held deletes, read only while it has some (ADR 0037). */
+    override val heldDeletes: StateFlow<List<String>> =
+        viewModelScope.nodeState(emptyList(), refresh = merge(current, changes, folders)) { node ->
+            (current.value as? Page.Files)
+                ?.takeIf { page -> folders.value.any { it.id == page.folder && it.heldDeletes > 0UL } }
+                ?.let { node.heldDeletes(it.folder) }
+                ?: emptyList()
+        }
+
     /** What this phone applied to the folder whose activity is open. */
     override val activity: StateFlow<List<Activity>> = viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
         (current.value as? Page.Activity)?.let { node.activity(it.folder, ACTIVITY_SHOWN) } ?: emptyList()
@@ -243,6 +252,21 @@ class HomeViewModel : ViewModel(), HomeModel {
         Peer.start().resolve(folder, path, keep)
         current.value = Page.Files(folder)
         if (keep == "both") "Kept both versions of $path on all your devices." else "Kept the version you chose on all your devices."
+    }
+
+    override fun confirmDeletes(folder: String) = act {
+        Peer.start().confirmDeletes(folder)
+        "Deleted the files from all your devices. Each keeps them in its recycle bin."
+    }
+
+    override fun restoreDeleted(folder: String) = act {
+        Peer.start().restoreDeleted(folder)
+        "Bringing the files back from your other devices."
+    }
+
+    override fun retryProblems(folder: String) = act {
+        withContext(Dispatchers.IO) { Peer.start().retryProblems(folder) }
+        "Trying again."
     }
 
     /** A read-only copy of [version] of [path], to open in another app. */

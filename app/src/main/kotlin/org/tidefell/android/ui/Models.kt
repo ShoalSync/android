@@ -32,6 +32,9 @@ interface HomeModel {
     val folders: StateFlow<List<Folder>>
     val files: StateFlow<List<SyncedFile>>
     val problems: StateFlow<List<PathProblem>>
+
+    /** The open folder's files a scan found deleted and held for a decision (ADR 0037). */
+    val heldDeletes: StateFlow<List<String>>
     val activity: StateFlow<List<Activity>>
     val recycleBin: StateFlow<List<Recycled>>
     val versions: StateFlow<List<Version>>
@@ -58,6 +61,15 @@ interface HomeModel {
     fun unpin(folder: String, path: String)
     fun restoreVersion(folder: String, path: String, version: Version)
     fun resolve(folder: String, path: String, keep: String)
+
+    /** Deletes a folder's held deletes on every device (ADR 0037). */
+    fun confirmDeletes(folder: String)
+
+    /** Brings a folder's held deletes back from other devices (ADR 0037). */
+    fun restoreDeleted(folder: String)
+
+    /** Tries a folder's failed writes and deletes again (ADR 0037). */
+    fun retryProblems(folder: String)
     suspend fun openVersion(folder: String, path: String, version: Version): String
     fun dismissCrashes()
     fun restart()

@@ -158,6 +158,20 @@ class ScreenshotTest {
         capture("07-folders-rebuilding")
     }
 
+    @Test
+    fun foldersNeedingAttention() {
+        home(
+            FakeHome().apply {
+                folders.value = listOf(
+                    Sample.camera.copy(state = org.tidefell.ffi.FolderState.IDLE, pendingFiles = 0u, heldDeletes = 240u),
+                    Sample.documents.copy(conflicts = 0u, problems = 0u, lowSpace = LOW_SPACE),
+                    Sample.shared().copy(state = org.tidefell.ffi.FolderState.ERROR, error = UNAVAILABLE, unavailable = UNAVAILABLE),
+                )
+            },
+        )
+        capture("08-folders-attention")
+    }
+
     // A folder's files.
 
     private fun documents() = FakeHome(Page.Files(Sample.documents.id))
@@ -270,6 +284,76 @@ class ScreenshotTest {
             },
         )
         capture("19-files-folder-error")
+    }
+
+    // What keeps a folder from syncing as usual (ADR 0037).
+
+    private fun documentsWith(folder: org.tidefell.ffi.Folder) = documents().apply {
+        folders.value = listOf(folder)
+        problems.value = emptyList()
+    }
+
+    private val heldDeletes = Sample.documents.copy(conflicts = 0u, problems = 0u, heldDeletes = 240u)
+
+    @Test
+    fun folderUnavailable() {
+        home(
+            documentsWith(
+                Sample.documents.copy(
+                    state = org.tidefell.ffi.FolderState.ERROR,
+                    error = UNAVAILABLE,
+                    unavailable = UNAVAILABLE,
+                    conflicts = 0u,
+                    problems = 0u,
+                ),
+            ),
+        )
+        capture("19-files-unavailable")
+    }
+
+    @Test
+    fun folderHeldDeletes() {
+        home(documentsWith(heldDeletes))
+        capture("19-files-held-deletes")
+    }
+
+    @Test
+    fun folderHeldDeletesList() {
+        home(documentsWith(heldDeletes))
+        click("Show files")
+        capture("19-files-held-deletes-list")
+    }
+
+    @Test
+    fun folderHeldDeletesConfirm() {
+        home(documentsWith(heldDeletes))
+        click("Delete everywhere")
+        capture("19-files-held-deletes-confirm")
+    }
+
+    @Test
+    fun folderLowSpace() {
+        home(documentsWith(Sample.documents.copy(conflicts = 0u, problems = 0u, lowSpace = LOW_SPACE)))
+        capture("19-files-low-space")
+    }
+
+    @Test
+    fun filesWithLastingProblems() {
+        home(
+            documents().apply {
+                folders.value = listOf(Sample.documents.copy(problems = 2u))
+                problems.value = Sample.problems + org.tidefell.ffi.PathProblem(
+                    path = "Letters/To the council.odt",
+                    operation = org.tidefell.ffi.Operation.DELETE,
+                    kind = org.tidefell.ffi.ProblemKind.PERMISSION_DENIED,
+                    message = "Permission denied (os error 13)",
+                    sinceMs = Sample.minutesAgo(45),
+                    attempts = 0u,
+                )
+            },
+        )
+        click("2 files with problems")
+        capture("11-files-problems-lasting")
     }
 
     // Activity.
@@ -555,5 +639,11 @@ class ScreenshotTest {
     fun pairingFailed() {
         pairing(PairStep.Failed("The code expired."))
         capture("95-pairing-failed")
+    }
+
+    private companion object {
+        const val UNAVAILABLE = "/storage/1A2B-3C4D/Music is missing; is its drive mounted?"
+        const val LOW_SPACE = "the folder's drive is low on space (waiting for space: 640.0 MiB free, and 1.0 GiB more " +
+            "must stay free); this folder's recycle bin and earlier versions hold 1.2 GiB here"
     }
 }
