@@ -1,0 +1,14 @@
+{
+  "space": {
+    "$type": "dimension",
+    "$description": "Space between and around things, on a 4px grid with 2px for hairline gaps. 1px is 1dp on Android and 1pt on Apple platforms.",
+    "xxs": { "$value": { "value": 2, "unit": "px" }, "$description": "Between a line of text and the line under it in the same item." },
+    "xs": { "$value": { "value": 4, "unit": "px" }, "$description": "Between lines of one item; around small things." },
+    "sm": { "$value": { "value": 8, "unit": "px" }, "$description": "Between an icon and its text; between buttons, chips and lines in a card." },
+    "md": { "$value": { "value": 12, "unit": "px" }, "$description": "Between cards and sections; inside choice cards." },
+    "lg": { "$value": { "value": 16, "unit": "px" }, "$description": "A page's side margins; inside cards; between a tile and its text." },
+    "xl": { "$value": { "value": 24, "unit": "px" }, "$description": "Around a page that stands alone, such as pairing." },
+    "xxl": { "$value": { "value": 32, "unit": "px" }, "$description": "Side margins of a centred message." },
+    "xxxl": { "$value": { "value": 48, "unit": "px" }, "$description": "Above and below a centred message or a wait." }
+  }
+}

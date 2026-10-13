@@ -152,6 +152,31 @@ jobs:
             scripts/ci-exit-criterion.sh
             scripts/file-names.sh
 
+  # The design tokens (design/README.md): the committed dist/ must be what the tokens build.
+  design:
+    name: Design tokens
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: design/.node-version
+      - name: Build
+        working-directory: design
+        run: |
+          npm ci
+          npm run build
+      - name: dist/ is up to date
+        run: |
+          if [ -n "$(git status --porcelain -- design/dist)" ]; then
+            git status --short -- design/dist
+            git diff -- design/dist
+            echo "design/dist differs from what the tokens build: run npm run build in design/ and commit it."
+            exit 1
+          fi
+
   # Shell scripts and spelling (ADR 0031). The repository has no Nix files.
   shell-and-spelling:
     name: Shell and spelling

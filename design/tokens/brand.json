@@ -1,0 +1,7 @@
+{
+  "brand": {
+    "$type": "color",
+    "$description": "The same in light and dark.",
+    "mark": { "$value": "#0d6e8a", "$description": "The tile behind the white wave, as on the app icon." }
+  }
+}

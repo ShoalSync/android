@@ -15,152 +15,79 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import org.tidefell.android.R
+import org.tidefell.design.TidefellColors
+import org.tidefell.design.TidefellDarkColors
+import org.tidefell.design.TidefellLightColors
+import org.tidefell.design.TidefellRadius
+import org.tidefell.design.TidefellText
+import org.tidefell.design.TidefellTextStyle
 
 /*
- * Tidefell's look: the website's teal and cool slate greys (tidefell/site), not Material's
- * default purple. Every colour role is set, so no default shows through anywhere.
+ * Tidefell's look. The colours, text styles and corner radii are the design tokens in
+ * design/tokens, shared with the website and, later, the Apple apps; this file gives them to
+ * Material. Every colour and text role is set, so none of Material's defaults shows through.
  */
 
-/* The website's colours, and tones made from them for the roles it has no colour for. */
-private val LightPrimary = Color(0xFF0D6E8A)
-private val White = Color(0xFFFFFFFF)
-private val LightPrimaryContainer = Color(0xFFC4E8F3)
-private val LightOnPrimaryContainer = Color(0xFF00222D)
-private val LightInversePrimary = Color(0xFF4FB3CF)
-private val LightSecondary = Color(0xFF4C6370)
-private val LightSecondaryContainer = Color(0xFFD6E5EE)
-private val LightOnSecondaryContainer = Color(0xFF0A1E28)
-private val LightTertiary = Color(0xFF8A5A12)
-private val LightTertiaryContainer = Color(0xFFFCE3BF)
-private val LightOnTertiaryContainer = Color(0xFF2D1A00)
-private val LightBackground = Color(0xFFFBFCFD)
-private val LightOnBackground = Color(0xFF1C2530)
-private val LightSurfaceVariant = Color(0xFFDDE3EA)
-private val LightOnSurfaceVariant = Color(0xFF5B6776)
-private val LightInverseSurface = Color(0xFF2B3540)
-private val LightInverseOnSurface = Color(0xFFEDF1F5)
-private val LightError = Color(0xFFB3261E)
-private val LightErrorContainer = Color(0xFFFADEDB)
-private val LightOnErrorContainer = Color(0xFF410E0B)
-private val LightOutline = Color(0xFF8994A1)
-private val Black = Color(0xFF000000)
-private val LightSurfaceDim = Color(0xFFD8DEE4)
-private val LightSurfaceContainerLow = Color(0xFFF4F7F9)
-private val LightSurfaceContainer = Color(0xFFEEF2F6)
-private val LightSurfaceContainerHigh = Color(0xFFE7ECF1)
-private val LightSurfaceContainerHighest = Color(0xFFE1E7ED)
-private val DarkOnPrimary = Color(0xFF00313F)
-private val DarkPrimaryContainer = Color(0xFF0B4F63)
-private val DarkSecondary = Color(0xFFB3C8D5)
-private val DarkOnSecondary = Color(0xFF1E333F)
-private val DarkSecondaryContainer = Color(0xFF344A57)
-private val DarkTertiary = Color(0xFFF2BE74)
-private val DarkOnTertiary = Color(0xFF482A00)
-private val DarkTertiaryContainer = Color(0xFF66420A)
-private val DarkBackground = Color(0xFF11171D)
-private val DarkOnBackground = Color(0xFFE3E9EF)
-private val DarkSurfaceVariant = Color(0xFF2A343F)
-private val DarkOnSurfaceVariant = Color(0xFF9AA7B5)
-private val DarkError = Color(0xFFF2B8B5)
-private val DarkOnError = Color(0xFF601410)
-private val DarkErrorContainer = Color(0xFF8C1D18)
-private val DarkOnErrorContainer = Color(0xFFF9DEDC)
-private val DarkOutline = Color(0xFF6B7785)
-private val DarkSurfaceBright = Color(0xFF2F3943)
-private val DarkSurfaceContainerLowest = Color(0xFF0B1116)
-private val DarkSurfaceContainerLow = Color(0xFF161E25)
-private val DarkSurfaceContainer = Color(0xFF1B242D)
-private val DarkSurfaceContainerHigh = Color(0xFF232D37)
-private val LightOk = Color(0xFF1E7B53)
-private val DarkOk = Color(0xFF7DD3A8)
+/** Material's colour roles from Tidefell's colours. */
+private fun TidefellColors.toMaterial(dark: Boolean): ColorScheme {
+    // Material's own scheme only for the roles Tidefell does not use, such as primaryFixed.
+    val material = if (dark) darkColorScheme() else lightColorScheme()
+    return material.copy(
+        primary = accent,
+        onPrimary = onAccent,
+        primaryContainer = accentSoft,
+        onPrimaryContainer = onAccentSoft,
+        inversePrimary = accentInverse,
+        secondary = secondary,
+        onSecondary = onSecondary,
+        secondaryContainer = secondarySoft,
+        onSecondaryContainer = onSecondarySoft,
+        tertiary = attention,
+        onTertiary = onAttention,
+        tertiaryContainer = attentionSoft,
+        onTertiaryContainer = onAttentionSoft,
+        background = bg,
+        onBackground = fg,
+        surface = bg,
+        onSurface = fg,
+        surfaceVariant = border,
+        onSurfaceVariant = fgMuted,
+        surfaceTint = accent,
+        inverseSurface = inverseBg,
+        inverseOnSurface = inverseFg,
+        error = danger,
+        onError = onDanger,
+        errorContainer = dangerSoft,
+        onErrorContainer = onDangerSoft,
+        outline = borderStrong,
+        outlineVariant = border,
+        scrim = scrim,
+        surfaceBright = surfaceBright,
+        surfaceDim = surfaceDim,
+        surfaceContainerLowest = surfaceLowest,
+        surfaceContainerLow = surfaceLow,
+        surfaceContainer = surface,
+        surfaceContainerHigh = surfaceHigh,
+        surfaceContainerHighest = surfaceHighest,
+    )
+}
 
-private val LightColors = lightColorScheme(
-    primary = LightPrimary,
-    onPrimary = White,
-    primaryContainer = LightPrimaryContainer,
-    onPrimaryContainer = LightOnPrimaryContainer,
-    inversePrimary = LightInversePrimary,
-    secondary = LightSecondary,
-    onSecondary = White,
-    secondaryContainer = LightSecondaryContainer,
-    onSecondaryContainer = LightOnSecondaryContainer,
-    tertiary = LightTertiary,
-    onTertiary = White,
-    tertiaryContainer = LightTertiaryContainer,
-    onTertiaryContainer = LightOnTertiaryContainer,
-    background = LightBackground,
-    onBackground = LightOnBackground,
-    surface = LightBackground,
-    onSurface = LightOnBackground,
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = LightOnSurfaceVariant,
-    surfaceTint = LightPrimary,
-    inverseSurface = LightInverseSurface,
-    inverseOnSurface = LightInverseOnSurface,
-    error = LightError,
-    onError = White,
-    errorContainer = LightErrorContainer,
-    onErrorContainer = LightOnErrorContainer,
-    outline = LightOutline,
-    outlineVariant = LightSurfaceVariant,
-    scrim = Black,
-    surfaceBright = LightBackground,
-    surfaceDim = LightSurfaceDim,
-    surfaceContainerLowest = White,
-    surfaceContainerLow = LightSurfaceContainerLow,
-    surfaceContainer = LightSurfaceContainer,
-    surfaceContainerHigh = LightSurfaceContainerHigh,
-    surfaceContainerHighest = LightSurfaceContainerHighest,
-)
-
-private val DarkColors = darkColorScheme(
-    primary = LightInversePrimary,
-    onPrimary = DarkOnPrimary,
-    primaryContainer = DarkPrimaryContainer,
-    onPrimaryContainer = LightPrimaryContainer,
-    inversePrimary = LightPrimary,
-    secondary = DarkSecondary,
-    onSecondary = DarkOnSecondary,
-    secondaryContainer = DarkSecondaryContainer,
-    onSecondaryContainer = LightSecondaryContainer,
-    tertiary = DarkTertiary,
-    onTertiary = DarkOnTertiary,
-    tertiaryContainer = DarkTertiaryContainer,
-    onTertiaryContainer = LightTertiaryContainer,
-    background = DarkBackground,
-    onBackground = DarkOnBackground,
-    surface = DarkBackground,
-    onSurface = DarkOnBackground,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = DarkOnSurfaceVariant,
-    surfaceTint = LightInversePrimary,
-    inverseSurface = DarkOnBackground,
-    inverseOnSurface = LightOnBackground,
-    error = DarkError,
-    onError = DarkOnError,
-    errorContainer = DarkErrorContainer,
-    onErrorContainer = DarkOnErrorContainer,
-    outline = DarkOutline,
-    outlineVariant = DarkSurfaceVariant,
-    scrim = Black,
-    surfaceBright = DarkSurfaceBright,
-    surfaceDim = DarkBackground,
-    surfaceContainerLowest = DarkSurfaceContainerLowest,
-    surfaceContainerLow = DarkSurfaceContainerLow,
-    surfaceContainer = DarkSurfaceContainer,
-    surfaceContainerHigh = DarkSurfaceContainerHigh,
-    surfaceContainerHighest = LightInverseSurface,
-)
+private val LightColors = TidefellLightColors.toMaterial(dark = false)
+private val DarkColors = TidefellDarkColors.toMaterial(dark = true)
 
 /** Colours Material has no role for: a state that is fine, and one that wants attention. */
 @Immutable
 data class StatusColors(val ok: Color, val attention: Color)
 
-private val LightStatus = StatusColors(ok = LightOk, attention = LightTertiary)
-private val DarkStatus = StatusColors(ok = DarkOk, attention = DarkTertiary)
+private fun TidefellColors.status() = StatusColors(ok = ok, attention = attention)
+
+private val LightStatus = TidefellLightColors.status()
+private val DarkStatus = TidefellDarkColors.status()
 
 private val LocalStatusColors = staticCompositionLocalOf { LightStatus }
 
@@ -169,31 +96,65 @@ val MaterialTheme.statusColors: StatusColors
     @Composable @ReadOnlyComposable
     get() = LocalStatusColors.current
 
-/** Material's scale, with firmer titles and a little more room in body text. */
-private val TidefellTypography = Typography().run {
-    copy(
-        headlineMedium = headlineMedium.copy(fontWeight = FontWeight.SemiBold),
-        headlineSmall = headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-        titleLarge = titleLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
-        titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 0.sp),
-        titleSmall = titleSmall.copy(fontWeight = FontWeight.SemiBold),
-        bodyLarge = bodyLarge.copy(lineHeight = 24.sp, letterSpacing = 0.15.sp),
-        bodyMedium = bodyMedium.copy(lineHeight = 20.sp),
-        labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        labelMedium = labelMedium.copy(fontWeight = FontWeight.SemiBold),
-    )
-}
+/** Inter at weights the text styles and Material use, at one optical size. */
+private fun inter(opticalSize: Float) = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map { weight ->
+        Font(
+            R.font.inter,
+            weight,
+            variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight), FontVariation.Setting("opsz", opticalSize)),
+        )
+    },
+)
+
+/** Inter's optical sizes run from 14 to 32; Apple platforms choose it from the text's size too. */
+private const val MIN_OPTICAL_SIZE = 14f
+private const val MAX_OPTICAL_SIZE = 32f
+
+private fun TidefellTextStyle.toCompose() = TextStyle(
+    fontFamily = inter(size.value.coerceIn(MIN_OPTICAL_SIZE, MAX_OPTICAL_SIZE)),
+    fontWeight = weight,
+    fontSize = size,
+    lineHeight = lineHeight,
+    letterSpacing = letterSpacing,
+)
+
+private val Display = TidefellText.Display.toCompose()
+private val Title = TidefellText.Title.toCompose()
+private val Label = TidefellText.Label.toCompose()
+private val LabelSmall = TidefellText.LabelSmall.toCompose()
+private val Section = TidefellText.Section.toCompose()
+
+/** Material's roles from Tidefell's text styles. */
+private val TidefellTypography = Typography(
+    displayLarge = Display,
+    displayMedium = Display,
+    displaySmall = Display,
+    headlineLarge = Title,
+    headlineMedium = Title,
+    headlineSmall = Title,
+    titleLarge = Title,
+    titleMedium = TidefellText.Heading.toCompose(),
+    titleSmall = Label,
+    bodyLarge = TidefellText.Body.toCompose(),
+    bodyMedium = TidefellText.BodySmall.toCompose(),
+    bodySmall = TidefellText.Caption.toCompose(),
+    labelLarge = Label,
+    labelMedium = LabelSmall,
+    labelSmall = LabelSmall,
+)
 
 /** Small section headings, such as "NETWORK" in settings. */
+@Suppress("UnusedReceiverParameter") // Read beside the other styles, as MaterialTheme.typography.sectionLabel.
 val Typography.sectionLabel: TextStyle
-    get() = labelMedium.copy(letterSpacing = 1.2.sp, fontWeight = FontWeight.Bold)
+    get() = Section
 
 private val TidefellShapes = Shapes(
-    extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp),
+    extraSmall = RoundedCornerShape(TidefellRadius.Xs),
+    small = RoundedCornerShape(TidefellRadius.Sm),
+    medium = RoundedCornerShape(TidefellRadius.Md),
+    large = RoundedCornerShape(TidefellRadius.Lg),
+    extraLarge = RoundedCornerShape(TidefellRadius.Xl),
 )
 
 /** The app's colours, type and shapes, light or dark as the phone is. */

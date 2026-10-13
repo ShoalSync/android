@@ -26,7 +26,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
+
+/** Room after the last folder for the add folder button: its 56dp, and its margins. */
+private val AddButtonRoom = 96.dp
 
 /** Pausing syncing on the whole phone (ADR 0029). */
 @Composable
@@ -37,18 +42,18 @@ private fun DevicePause(model: HomeModel) {
         Banner(
             TidefellIcons.Pause,
             "Syncing is paused on this phone. Changes here are recorded and sent when it resumes.",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
             action = {
                 FilledTonalButton(onClick = { model.resume(null) }) {
-                    Icon(TidefellIcons.Play, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Resume syncing", Modifier.padding(start = 8.dp))
+                    Icon(TidefellIcons.Play, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
+                    Text("Resume syncing", Modifier.padding(start = TidefellSpace.Sm))
                 }
             },
         )
     } else {
-        TextButton(onClick = { model.pause(null) }, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Icon(TidefellIcons.Pause, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Pause syncing on this phone", Modifier.padding(start = 8.dp))
+        TextButton(onClick = { model.pause(null) }, modifier = Modifier.padding(horizontal = TidefellSpace.Sm)) {
+            Icon(TidefellIcons.Pause, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
+            Text("Pause syncing on this phone", Modifier.padding(start = TidefellSpace.Sm))
         }
     }
 }
@@ -57,7 +62,7 @@ private fun DevicePause(model: HomeModel) {
 @Composable
 fun FolderList(model: HomeModel, folders: List<Folder>, onOpen: (Folder) -> Unit) {
     // Room at the end, so the add folder button does not cover the last folder.
-    LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
+    LazyColumn(contentPadding = PaddingValues(bottom = AddButtonRoom)) {
         item { CrashNotice(model) }
         item { DevicePause(model) }
         if (folders.isEmpty()) {
@@ -74,18 +79,19 @@ private fun FolderCard(folder: Folder, onClick: () -> Unit) {
     val look = folderLook(folder)
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        // Half the space between cards above and below each, so they are TidefellSpace.Md apart.
+        modifier = Modifier.fillMaxWidth().padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Md / 2),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(Modifier.padding(TidefellSpace.Lg), horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Lg)) {
             IconTile(
                 if (choice == SyncChoice.FILES_ON_DEMAND) TidefellIcons.Cloud else TidefellIcons.Folder,
                 container = MaterialTheme.colorScheme.primaryContainer,
                 content = MaterialTheme.colorScheme.onPrimaryContainer,
-                size = 44.dp,
+                size = TidefellSize.TileLg,
             )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                 Text(Peer.folderName(folder), style = MaterialTheme.typography.titleMedium)
                 if (choice != SyncChoice.FILES_ON_DEMAND) {
                     Text(

@@ -97,7 +97,9 @@ Roborazzi compares them with the images in `app/src/test/screenshots/`:
 `./gradlew :app:verifyRoborazziDebug` fails on any difference, and CI runs it; after a deliberate
 change, `./gradlew :app:recordRoborazziDebug` writes the images again, and the diff of the PNGs
 shows what changed. A new screen or state gets a test, and its image is looked at before it is
-committed.
+committed. `LargeScreenTest` draws the main screens again on a tablet, held either way, and on
+the open screens of two foldables, into `app/src/test/screenshots/large/`; a page's content is
+no wider than the `size.content-max` design token (`pageWidth()` in `ui/Layout.kt`).
 
 `./gradlew :app:lintDebug` runs Android Lint and `scripts/detekt.sh` runs detekt with its formatting
 rules (ADR 0031). Both fail on any finding not in their baselines, `app/lint-baseline.xml` and

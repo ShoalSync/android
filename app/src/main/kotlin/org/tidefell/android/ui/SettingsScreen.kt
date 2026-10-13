@@ -31,12 +31,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
 
 /** When phone folders sync, and each folder's sync choice and recycle bin on this phone. */
@@ -45,8 +46,8 @@ fun SettingsScreen(modifier: Modifier = Modifier, model: SettingsModel = viewMod
     val folders by model.folders.collectAsStateWithLifecycle()
     val errors by model.errors.collectAsStateWithLifecycle()
     Column(
-        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
+        verticalArrangement = Arrangement.spacedBy(TidefellSpace.Md),
     ) {
         SectionCard("Background sync") {
             BackgroundSettings(model, hasPhoneFolders = folders.any { !PhoneFolders.inAppStorage(it) })
@@ -88,7 +89,7 @@ private fun LimitSettings(model: SettingsModel) {
         "Most KiB per second this phone sends to and receives from your other devices. Leave empty for no limit; " +
             "a limit is at least 64.",
     )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         OutlinedTextField(
             value = upload,
             onValueChange = { upload = it.filter(Char::isDigit).take(7) },
@@ -137,9 +138,12 @@ private fun ReportSettings(model: SettingsModel) {
 @Composable
 private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange).padding(vertical = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .padding(vertical = TidefellSpace.Xs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = null)
@@ -159,7 +163,7 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
     var confirmRemoving by rememberSaveable { mutableStateOf(false) }
     val choice = PhoneFolders.choice(folder)
 
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
         IconTile(
             if (choice == SyncChoice.FILES_ON_DEMAND) TidefellIcons.Cloud else TidefellIcons.Folder,
             container = MaterialTheme.colorScheme.primaryContainer,
@@ -180,7 +184,7 @@ private fun FolderSettings(model: SettingsModel, folder: Folder, error: String?)
         }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         OutlinedTextField(
             value = days,
             onValueChange = { days = it.filter(Char::isDigit).take(5) },
@@ -243,8 +247,8 @@ private fun RebuildSettings(model: SettingsModel, folder: Folder) {
         Hint("$done, as ${rebuild.reason}.")
     }
     TextButton(onClick = { confirmRebuilding = true }) {
-        Icon(TidefellIcons.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-        Text("Rebuild this folder", Modifier.padding(start = 8.dp))
+        Icon(TidefellIcons.Sync, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
+        Text("Rebuild this folder", Modifier.padding(start = TidefellSpace.Sm))
     }
     if (confirmRebuilding) {
         AlertDialog(

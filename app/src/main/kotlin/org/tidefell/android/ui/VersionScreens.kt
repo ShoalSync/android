@@ -32,13 +32,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
 import org.tidefell.android.folders.PhoneFolders
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Crash
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.Version
@@ -54,7 +55,7 @@ fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
     val versions by model.versions.collectAsStateWithLifecycle()
     var restoring by remember { mutableStateOf<Version?>(null) }
     val earlier = versions.filter { it.kind == VersionKind.PREVIOUS }
-    Text(path, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+    Text(path, Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm), style = MaterialTheme.typography.titleMedium)
     if (earlier.isEmpty()) {
         EmptyState(TidefellIcons.History, "No earlier versions are kept on this phone.")
         return
@@ -63,7 +64,7 @@ fun HistoryPage(model: HomeModel, folder: Folder, path: String) {
         "Versions this phone kept when the file was replaced. Restoring one makes it the file again on all your devices.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
+        modifier = Modifier.padding(horizontal = TidefellSpace.Lg),
     )
     LazyColumn {
         items(earlier, key = { it.id }) { version ->
@@ -116,7 +117,7 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
     val waiting = versions.filter { it.kind != VersionKind.PREVIOUS }
     LazyColumn {
         item {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                 Text(path, style = MaterialTheme.typography.titleMedium)
                 if (waiting.size < 2) {
                     Text("There is nothing to decide: this file has one version now.")
@@ -135,7 +136,7 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                 ConflictVersion(model, folder, path, version)
             }
             item {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                     Text(
                         "Keeping one sends the others to every device's recycle bin, where they can be restored for a while. " +
                             "Keeping both leaves the version shown now as the file and puts each other one beside it, named " +
@@ -143,7 +144,7 @@ fun ConflictPage(model: HomeModel, folder: Folder, path: String, onLater: () -> 
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                         OutlinedButton(onClick = { model.resolve(folder.id, path, "both") }) { Text("Keep both") }
                         TextButton(onClick = onLater) { Text("Decide later") }
                     }
@@ -159,8 +160,9 @@ private fun ConflictVersion(model: HomeModel, folder: Folder, path: String, vers
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val label = if (version.kind == VersionKind.CURRENT) "Shown now" else "Other version"
-    SectionCard(label, Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Half the space between cards above and below each, so they are TidefellSpace.Md apart.
+    SectionCard(label, Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Md / 2)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
             IconTile(TidefellIcons.Devices)
             Column {
                 Text(version.authorName ?: "Another device", style = MaterialTheme.typography.titleMedium)
@@ -171,7 +173,7 @@ private fun ConflictVersion(model: HomeModel, folder: Folder, path: String, vers
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
             OutlinedButton(onClick = { scope.launch { open(context, model, folder, path, version) } }) { Text("Open") }
             Button(onClick = { model.resolve(folder.id, path, version.id) }) { Text("Keep this one") }
         }
@@ -190,23 +192,27 @@ fun CrashNotice(model: HomeModel) {
     val newest = crashes.maxByOrNull { it.timeMs }
     if (crashed == null && newest == null) return
     Card(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer,
         ),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(TidefellIcons.Error, contentDescription = null, modifier = Modifier.padding(top = 2.dp).size(20.dp))
+        Column(Modifier.padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
+                Icon(
+                    TidefellIcons.Error,
+                    contentDescription = null,
+                    modifier = Modifier.padding(top = TidefellSpace.Xxs).size(TidefellSize.IconMd),
+                )
                 Text(
                     if (crashed != null) "Syncing stopped because of an error" else "Tidefell stopped unexpectedly",
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
             Text(crashed ?: newest!!.message, style = MaterialTheme.typography.bodySmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                 if (crashed != null) OutlinedButton(onClick = model::restart) { Text("Start syncing again") }
                 if (newest != null) {
                     TextButton(onClick = { report(context, newest) }) { Text("Report") }

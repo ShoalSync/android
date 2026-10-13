@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.addPathNodes
-import androidx.compose.ui.unit.dp
+import org.tidefell.design.TidefellSize
 
 /**
  * The few Material icons the app draws, from their 24 dp path data, so the app needs no icon
@@ -77,7 +77,7 @@ object TidefellIcons {
         icon("Wave", "M6,26c6,0 6,-6 12,-6s6,6 12,6 6,-6 12,-6v6c-6,0 -6,6 -12,6s-6,-6 -12,-6 -6,6 -12,6z", viewport = 48f)
 
     private fun icon(name: String, path: String, viewport: Float = 24f): ImageVector =
-        ImageVector.Builder(name, 24.dp, 24.dp, viewport, viewport)
+        ImageVector.Builder(name, TidefellSize.IconLg, TidefellSize.IconLg, viewport, viewport)
             .addPath(addPathNodes(path), fill = SolidColor(Color.Black))
             .build()
 }

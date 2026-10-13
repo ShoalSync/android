@@ -1,0 +1,15 @@
+{
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "sans": { "$value": ["Inter", "system-ui", "sans-serif"], "$description": "All text but code: Inter, bundled in each app (design/fonts)." },
+      "mono": { "$value": ["ui-monospace", "monospace"], "$description": "Codes, IDs, paths and commands: the platform's own monospace." }
+    },
+    "weight": {
+      "$type": "fontWeight",
+      "regular": { "$value": 400 },
+      "semibold": { "$value": 600 },
+      "bold": { "$value": 700 }
+    }
+  }
+}

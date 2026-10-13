@@ -42,6 +42,12 @@ android {
         compose = true
     }
 
+    // The design tokens' Kotlin and resources, built from design/tokens (design/README.md).
+    sourceSets.getByName("main") {
+        kotlin.directories += "../design/dist/android/kotlin"
+        res.directories += "../design/dist/android/res"
+    }
+
     // Screenshot tests render every screen on the JVM with Robolectric (CONVENTIONS.md).
     testOptions {
         unitTests.isIncludeAndroidResources = true

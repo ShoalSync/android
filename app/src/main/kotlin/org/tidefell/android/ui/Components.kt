@@ -28,13 +28,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderState
 
 /** Tidefell's mark: the white wave on teal, as on the launcher icon. */
 @Composable
-fun BrandMark(size: Dp = 32.dp) {
+fun BrandMark(size: Dp = TidefellSize.TileSm) {
     Box(
         Modifier.size(size).clip(RoundedCornerShape(size * TILE_CORNER)).background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center,
@@ -49,7 +50,7 @@ fun IconTile(
     icon: ImageVector,
     container: Color = MaterialTheme.colorScheme.secondaryContainer,
     content: Color = MaterialTheme.colorScheme.onSecondaryContainer,
-    size: Dp = 40.dp,
+    size: Dp = TidefellSize.TileMd,
 ) {
     Box(
         Modifier.size(size).clip(RoundedCornerShape(size * TILE_CORNER)).background(container),
@@ -72,7 +73,7 @@ fun SectionCard(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
             title?.let {
                 Text(it.uppercase(), style = MaterialTheme.typography.sectionLabel, color = MaterialTheme.colorScheme.primary)
             }
@@ -97,12 +98,12 @@ fun Banner(
         color = if (error) colors.errorContainer else colors.tertiaryContainer,
         contentColor = if (error) colors.onErrorContainer else colors.onTertiaryContainer,
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+        Column(Modifier.padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
                 Text(text, style = MaterialTheme.typography.bodyMedium)
             }
-            action?.let { Box(Modifier.padding(start = 20.dp)) { it() } }
+            action?.let { Box(Modifier.padding(start = TidefellSize.IconMd + TidefellSpace.Md)) { it() } }
         }
     }
 }
@@ -110,8 +111,8 @@ fun Banner(
 /** An icon and a line of text in one colour, such as a folder's state. */
 @Composable
 fun StatusLine(icon: ImageVector, text: String, color: Color, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = 2.dp).size(16.dp))
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = TidefellSpace.Xxs).size(TidefellSize.IconSm))
         Text(text, style = MaterialTheme.typography.bodyMedium, color = color)
     }
 }
@@ -124,7 +125,11 @@ fun Pill(text: String) {
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
     ) {
-        Text(text, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = TidefellSpace.Md, vertical = TidefellSpace.Xs),
+        )
     }
 }
 
@@ -132,15 +137,15 @@ fun Pill(text: String) {
 @Composable
 fun EmptyState(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
     Column(
-        modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
+        modifier.fillMaxWidth().padding(horizontal = TidefellSpace.Xxl, vertical = TidefellSpace.Xxxl),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
     ) {
         IconTile(
             icon,
             container = MaterialTheme.colorScheme.surfaceContainerHigh,
             content = MaterialTheme.colorScheme.onSurfaceVariant,
-            size = 72.dp,
+            size = TidefellSize.Hero,
         )
         Text(
             text,
@@ -151,6 +156,9 @@ fun EmptyState(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Where an [ActionRow]'s label starts, to line a note up under it. */
+val ActionRowTextStart = TidefellSpace.Xs + TidefellSize.IconLg + TidefellSpace.Lg
+
 /** One choice in a list of actions, such as in a file's dialog. */
 @Composable
 fun ActionRow(
@@ -160,11 +168,15 @@ fun ActionRow(
     color: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Row(
-        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(horizontal = TidefellSpace.Xs, vertical = TidefellSpace.Md),
+        horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(TidefellSize.IconLg))
         Text(label, style = MaterialTheme.typography.bodyLarge, color = color)
     }
 }

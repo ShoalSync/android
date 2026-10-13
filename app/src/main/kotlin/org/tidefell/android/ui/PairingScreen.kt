@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,8 +34,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
+
+/** The pairing code's QR code, big enough for another device's camera across a desk. */
+private val QrSize = 256.dp
 
 /**
  * Shows a pairing code (ADR 0015) until a device holding the user key approves this phone, then
@@ -69,16 +73,16 @@ fun PairingScreen(
                     joining = null
                 },
                 { joining = null },
-                Modifier.padding(padding),
+                Modifier.padding(padding).pageWidth(),
             )
             return@Scaffold
         }
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp).verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(padding).pageWidth().padding(TidefellSpace.Xl).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
         ) {
-            BrandMark(64.dp)
+            BrandMark(TidefellSize.Hero)
             Text("Add this phone to your devices", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             when (val s = step) {
                 PairingViewModel.Step.Starting -> CircularProgressIndicator()
@@ -93,7 +97,7 @@ fun PairingScreen(
                     Image(
                         qrCode(s.code),
                         contentDescription = "Pairing code",
-                        modifier = Modifier.clip(MaterialTheme.shapes.large).background(Color.White).padding(12.dp).size(256.dp),
+                        modifier = Modifier.clip(MaterialTheme.shapes.large).background(Color.White).padding(TidefellSpace.Md).size(QrSize),
                     )
                     SelectionContainer {
                         Text(
@@ -119,12 +123,12 @@ fun PairingScreen(
                             "${s.code.take(3)} ${s.code.drop(3)}",
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+                            modifier = Modifier.padding(horizontal = TidefellSpace.Xxl, vertical = TidefellSpace.Lg),
                         )
                     }
                 }
                 is PairingViewModel.Step.Join -> {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
                         Icon(TidefellIcons.Ok, contentDescription = null, tint = MaterialTheme.statusColors.ok)
                         Text("Paired as ${s.name}.", style = MaterialTheme.typography.titleMedium)
                     }
@@ -134,7 +138,7 @@ fun PairingScreen(
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md),
                                 ) {
                                     IconTile(
                                         TidefellIcons.Folder,
@@ -176,6 +180,6 @@ private fun Code(text: String) {
         modifier = Modifier
             .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = TidefellSpace.Md, vertical = TidefellSpace.Xs),
     )
 }

@@ -41,13 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
 import java.io.File
@@ -84,7 +85,7 @@ fun AddFolderScreen(
         }
     }
 
-    Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxSize().padding(TidefellSpace.Lg), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
         // A new folder is added from the home screen, whose top bar says so; joining happens
         // while pairing, where there is none.
         offer?.let { Text("Join ${it.name}", style = MaterialTheme.typography.titleLarge) }
@@ -143,9 +144,18 @@ private fun PlaceCard(icon: ImageVector, title: String, summary: String, onClick
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
     ) {
-        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconTile(icon, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, size = 44.dp)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            Modifier.padding(TidefellSpace.Lg),
+            horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Lg),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconTile(
+                icon,
+                MaterialTheme.colorScheme.primaryContainer,
+                MaterialTheme.colorScheme.onPrimaryContainer,
+                size = TidefellSize.TileLg,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Xs)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -172,7 +182,7 @@ private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderModel) 
         return
     }
     Text(dir.path, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         Button(onClick = { model.choose(dir) }) { Text("Use this folder") }
         OutlinedButton(onClick = { model.up() }) { Text("Up") }
     }
@@ -195,7 +205,7 @@ private fun PickStep(step: AddFolderViewModel.Step.Pick, model: AddFolderModel) 
 private fun ChooseStep(dir: File, model: AddFolderModel) {
     var choice by rememberSaveable { mutableStateOf(SyncChoice.BACKUP_ONLY) }
     var confirmRemoving by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         Text(dir.path, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         Text("How should it sync?", style = MaterialTheme.typography.titleMedium)
         SyncChoices(choice) { choice = it }
@@ -220,7 +230,7 @@ fun SyncChoices(selected: SyncChoice, onSelect: (SyncChoice) -> Unit) {
     SyncChoice.forPhoneFolders.forEach { choice ->
         val chosen = choice == selected
         Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = TidefellSpace.Xs),
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
@@ -228,11 +238,11 @@ fun SyncChoices(selected: SyncChoice, onSelect: (SyncChoice) -> Unit) {
             ),
         ) {
             Row(
-                Modifier.fillMaxWidth().selectable(selected = chosen, onClick = { onSelect(choice) }).padding(12.dp),
+                Modifier.fillMaxWidth().selectable(selected = chosen, onClick = { onSelect(choice) }).padding(TidefellSpace.Md),
                 verticalAlignment = Alignment.Top,
             ) {
                 RadioButton(selected = chosen, onClick = null)
-                Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(Modifier.padding(start = TidefellSpace.Md), verticalArrangement = Arrangement.spacedBy(TidefellSpace.Xxs)) {
                     Text(choice.title, style = MaterialTheme.typography.titleSmall)
                     Text(choice.summary, style = MaterialTheme.typography.bodySmall)
                 }
@@ -263,8 +273,13 @@ fun ConfirmRemoveAfterBackup(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun DoneStep(folder: Folder, joined: Boolean, onDone: (Folder) -> Unit) {
     val context = LocalContext.current
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(TidefellIcons.Ok, contentDescription = null, tint = MaterialTheme.statusColors.ok, modifier = Modifier.size(28.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
+        Icon(
+            TidefellIcons.Ok,
+            contentDescription = null,
+            tint = MaterialTheme.statusColors.ok,
+            modifier = Modifier.size(TidefellSize.IconLg),
+        )
         Text("Added ${File(folder.path).name}.", style = MaterialTheme.typography.titleMedium)
     }
     if (!joined) {

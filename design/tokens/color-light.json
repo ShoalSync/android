@@ -1,0 +1,53 @@
+{
+  "color": {
+    "$type": "color",
+    "$description": "Colours by what they are for, never by hue. color-light.json and color-dark.json have the same names.",
+    "bg": { "$value": "#fbfcfd", "$description": "The page behind everything." },
+    "fg": { "$value": "#1c2530", "$description": "Text and icons on bg and on surfaces." },
+    "fg-muted": { "$value": "#5b6776", "$description": "Secondary text, such as a path under a folder's name." },
+    "border": { "$value": "#dde3ea", "$description": "Dividers and quiet outlines." },
+    "border-strong": { "$value": "#8994a1", "$description": "Outlines that must be seen, such as a text field's." },
+    "surface": {
+      "lowest": { "$value": "#ffffff" },
+      "low": { "$value": "#f4f7f9", "$description": "Cards on bg." },
+      "base": { "$value": "#eef2f6", "$description": "Code blocks; a raised area on bg." },
+      "high": { "$value": "#e7ecf1" },
+      "highest": { "$value": "#e1e7ed" },
+      "dim": { "$value": "#d8dee4" },
+      "bright": { "$value": "#fbfcfd" }
+    },
+    "accent": {
+      "base": { "$value": "#0d6e8a", "$description": "Tidefell's teal: the main action, links, selection." },
+      "on": { "$value": "#ffffff", "$description": "Text and icons on accent." },
+      "soft": { "$value": "#c4e8f3", "$description": "A tinted area, such as a chosen option." },
+      "on-soft": { "$value": "#00222d" },
+      "inverse": { "$value": "#4fb3cf", "$description": "Accent on an inverse surface." }
+    },
+    "secondary": {
+      "base": { "$value": "#4c6370", "$description": "A quieter slate, for things that should not compete with accent." },
+      "on": { "$value": "#ffffff" },
+      "soft": { "$value": "#d6e5ee", "$description": "Icon tiles and labels." },
+      "on-soft": { "$value": "#0a1e28" }
+    },
+    "attention": {
+      "base": { "$value": "#8a5a12", "$description": "Amber: a state that wants the person's attention but is not an error." },
+      "on": { "$value": "#ffffff" },
+      "soft": { "$value": "#fce3bf", "$description": "Notices such as syncing being paused." },
+      "on-soft": { "$value": "#2d1a00" }
+    },
+    "danger": {
+      "base": { "$value": "#b3261e", "$description": "Errors and actions that delete." },
+      "on": { "$value": "#ffffff" },
+      "soft": { "$value": "#fadedb" },
+      "on-soft": { "$value": "#410e0b" }
+    },
+    "ok": {
+      "base": { "$value": "#1e7b53", "$description": "Green: a state that is fine, such as up to date." }
+    },
+    "inverse": {
+      "bg": { "$value": "#2b3540", "$description": "Snackbars and tooltips, which stand out from bg." },
+      "fg": { "$value": "#edf1f5" }
+    },
+    "scrim": { "$value": "#000000", "$description": "Behind a dialog, at the platform's opacity." }
+  }
+}

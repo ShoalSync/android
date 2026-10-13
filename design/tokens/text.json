@@ -1,0 +1,69 @@
+{
+  "text": {
+    "$type": "typography",
+    "$description": "Text styles. lineHeight and letterSpacing are in px, not the format's ratio, as every platform sets them in points.",
+    "display": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.semibold}",
+        "fontSize": { "value": 40, "unit": "px" }, "lineHeight": { "value": 48, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Large figures to compare, such as the pairing code's digits."
+    },
+    "title": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.semibold}",
+        "fontSize": { "value": 22, "unit": "px" }, "lineHeight": { "value": 28, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "A page's or a dialog's title."
+    },
+    "heading": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.semibold}",
+        "fontSize": { "value": 16, "unit": "px" }, "lineHeight": { "value": 24, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "The title of a card or a row, such as a folder's name."
+    },
+    "body": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.regular}",
+        "fontSize": { "value": 16, "unit": "px" }, "lineHeight": { "value": 24, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Running text, settings' labels and text fields."
+    },
+    "body-small": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.regular}",
+        "fontSize": { "value": 14, "unit": "px" }, "lineHeight": { "value": 20, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Explanations under a heading, dialog text."
+    },
+    "caption": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.regular}",
+        "fontSize": { "value": 12, "unit": "px" }, "lineHeight": { "value": 16, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Small print: paths, times, who made a change."
+    },
+    "label": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.semibold}",
+        "fontSize": { "value": 14, "unit": "px" }, "lineHeight": { "value": 20, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Buttons, chips and short names in a list."
+    },
+    "label-small": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.semibold}",
+        "fontSize": { "value": 12, "unit": "px" }, "lineHeight": { "value": 16, "unit": "px" }, "letterSpacing": { "value": 0, "unit": "px" }
+      },
+      "$description": "Small labels, such as a folder's sync choice."
+    },
+    "section": {
+      "$value": {
+        "fontFamily": "{font.family.sans}", "fontWeight": "{font.weight.bold}",
+        "fontSize": { "value": 12, "unit": "px" }, "lineHeight": { "value": 16, "unit": "px" }, "letterSpacing": { "value": 1.2, "unit": "px" }
+      },
+      "$description": "A section's heading in capitals, such as NETWORK in settings."
+    }
+  }
+}

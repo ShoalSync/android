@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,13 +46,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import org.tidefell.android.Peer
 import org.tidefell.android.TidefellDocumentsProvider
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.SyncChoice
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.ChangeKind
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
@@ -115,7 +115,10 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     if (page == Page.Folders) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md),
+                        ) {
                             BrandMark()
                             Text(title)
                         }
@@ -168,9 +171,9 @@ fun HomeScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.padding(padding).pageWidth()) {
             when {
-                !started -> CircularProgressIndicator(Modifier.padding(48.dp).align(Alignment.CenterHorizontally))
+                !started -> CircularProgressIndicator(Modifier.padding(TidefellSpace.Xxxl).align(Alignment.CenterHorizontally))
                 page == Page.Settings -> settings()
                 page == Page.Status -> status()
                 page is Page.Activity && folder != null -> ActivityPage(model)
@@ -213,7 +216,7 @@ private fun FileList(model: HomeModel, folder: Folder, onCleanUp: () -> Unit) {
                 selected = showProblems,
                 onClick = { showProblems = !showProblems },
                 label = { Text("${files(problems.size)} with problems") },
-                leadingIcon = { Icon(TidefellIcons.Error, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                leadingIcon = { Icon(TidefellIcons.Error, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd)) },
             )
         }
     }
@@ -267,13 +270,18 @@ private fun FolderHeader(model: HomeModel, folder: Folder, onCleanUp: () -> Unit
         Banner(
             TidefellIcons.Pause,
             "Syncing of this folder is paused. Changes here are recorded and sent when it resumes.",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Xs),
         )
     } else {
         val look = folderLook(folder)
-        StatusLine(look.icon, folderStateText(folder), look.color, Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+        StatusLine(
+            look.icon,
+            folderStateText(folder),
+            look.color,
+            Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Xs),
+        )
     }
-    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(Modifier.padding(horizontal = TidefellSpace.Lg), horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         LinkChip(TidefellIcons.History, "Activity") { model.go(Page.Activity(folder.id)) }
         LinkChip(TidefellIcons.Delete, "Recycle bin") { model.go(Page.RecycleBin(folder.id)) }
         if (PhoneFolders.choice(folder).let { it == SyncChoice.BACKUP_ONLY || it == SyncChoice.TWO_WAY }) {
@@ -354,7 +362,7 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
                             "No device that keeps everything holds it yet; it stays in this phone's recycle bin.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 42.dp, bottom = 8.dp),
+                            modifier = Modifier.padding(start = ActionRowTextStart, bottom = TidefellSpace.Sm),
                         )
                     }
                 } else if (!PhoneFolders.inAppStorage(folder)) {
@@ -367,7 +375,7 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
                             "This folder only backs up, so later changes from your other devices will not replace this copy.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 42.dp, bottom = 8.dp),
+                            modifier = Modifier.padding(start = ActionRowTextStart, bottom = TidefellSpace.Sm),
                         )
                     }
                 }
@@ -479,9 +487,9 @@ private fun RecycleBin(model: HomeModel, folder: Folder) {
     }
     OutlinedButton(onClick = {
         confirmEmpty = true
-    }, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Icon(TidefellIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-        Text("Empty recycle bin", Modifier.padding(start = 8.dp))
+    }, modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm)) {
+        Icon(TidefellIcons.Delete, contentDescription = null, modifier = Modifier.size(TidefellSize.IconMd))
+        Text("Empty recycle bin", Modifier.padding(start = TidefellSpace.Sm))
     }
     LazyColumn {
         items(items, key = { it.entry }) { item ->
@@ -558,7 +566,7 @@ private fun RenameDialog(path: String, onRename: (String) -> Unit, onDismiss: ()
         onDismissRequest = onDismiss,
         title = { Text("Rename on all devices") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(TidefellSpace.Lg)) {
                 Text("This phone cannot store this name. Choose one every device can keep.")
                 OutlinedTextField(value = to, onValueChange = { to = it }, singleLine = true)
             }

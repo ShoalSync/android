@@ -1,0 +1,14 @@
+{
+  "size": {
+    "$type": "dimension",
+    "$description": "Sizes of things. 1px is 1dp on Android and 1pt on Apple platforms.",
+    "content-max": { "$value": { "value": 720, "unit": "px" }, "$description": "The widest a page's content gets, centred, on a tablet or an open foldable." },
+    "icon-sm": { "$value": { "value": 16, "unit": "px" }, "$description": "An icon in a line of small text, such as a folder's state." },
+    "icon-md": { "$value": { "value": 20, "unit": "px" }, "$description": "An icon in a button or a banner." },
+    "icon-lg": { "$value": { "value": 24, "unit": "px" }, "$description": "An icon on its own, such as in a top bar or an action row." },
+    "tile-sm": { "$value": { "value": 32, "unit": "px" }, "$description": "The mark beside the app's name." },
+    "tile-md": { "$value": { "value": 40, "unit": "px" }, "$description": "An icon tile leading a row, such as a file's." },
+    "tile-lg": { "$value": { "value": 48, "unit": "px" }, "$description": "An icon tile leading a card, such as a folder's." },
+    "hero": { "$value": { "value": 64, "unit": "px" }, "$description": "The mark or icon at the top of a page that stands alone, or of an empty page." }
+  }
+}

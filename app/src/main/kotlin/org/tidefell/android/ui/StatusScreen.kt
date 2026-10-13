@@ -48,6 +48,8 @@ import org.json.JSONObject
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
+import org.tidefell.design.TidefellSize
+import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Check
 import org.tidefell.ffi.CheckLevel
 import org.tidefell.ffi.DiagnosticsBundle
@@ -162,6 +164,9 @@ class StatusViewModel(application: Application) : AndroidViewModel(application),
     }
 }
 
+/** The tallest the list of a diagnostics bundle's files gets; it scrolls beyond. */
+private val DiagnosticsMaxHeight = 480.dp
+
 @Composable
 fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
     val context = LocalContext.current
@@ -175,8 +180,8 @@ fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
         onDispose { model.showing(false) }
     }
     Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.verticalScroll(rememberScrollState()).padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
+        verticalArrangement = Arrangement.spacedBy(TidefellSpace.Md),
     ) {
         SectionCard("Devices") {
             if (peers.isEmpty()) Text("This phone does not sync with any other device yet.")
@@ -209,7 +214,7 @@ fun StatusPage(model: StatusModel = viewModel<StatusViewModel>()) {
 /** A device this phone syncs with, and how it is connected. */
 @Composable
 private fun PeerRow(peer: PeerState) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
         if (peer.connected) {
             IconTile(TidefellIcons.Devices, MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer)
         } else {
@@ -235,8 +240,8 @@ private fun CheckRow(check: Check) {
         CheckLevel.WARNING -> TidefellIcons.Warning to MaterialTheme.statusColors.attention
         CheckLevel.FAILURE -> TidefellIcons.Error to MaterialTheme.colorScheme.error
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = 2.dp).size(20.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(top = TidefellSpace.Xxs).size(TidefellSize.IconMd))
         Column {
             val level = when (check.level) {
                 CheckLevel.PASS -> "OK"
@@ -261,7 +266,7 @@ private fun BundlePreview(context: Context, bundle: DiagnosticsBundle, onDismiss
         onDismissRequest = onDismiss,
         title = { Text("Share diagnostics?") },
         text = {
-            Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
+            Column(Modifier.heightIn(max = DiagnosticsMaxHeight).verticalScroll(rememberScrollState())) {
                 bundle.entries.forEach { entry ->
                     Text(entry.name, style = MaterialTheme.typography.titleSmall)
                     Text(

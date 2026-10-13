@@ -7,6 +7,9 @@ Read this before changing anything in this repository.
 The Android app: Kotlin + Jetpack Compose UI, the foreground service that hosts the
 peer, the `DocumentsProvider` for placeholders, camera-roll backup and the Gradle build.
 
+For now it also holds Tidefell's design tokens (`design/`), until the Apple apps start and they
+move to a repository of their own.
+
 ## Consumes
 
 - The `tidefell-ffi-X.Y.Z.aar` attached to monorepo releases (ADR 0014), pinned in
@@ -33,11 +36,16 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
   checkout instead of editing the pin.
 - **Screens:** a composable takes its screen's model interface (`ui/Models.kt`), not the view
   model, so screenshot tests can draw it with fixed data. A new screen or state gets a
-  screenshot test; see the README.
-- **Look:** colours, type and shapes come from `ui/Theme.kt`, whose palette is the website's;
-  a screen uses theme roles (and `statusColors` for fine or needs-attention states), never a
-  colour of its own. Icons are in `ui/TidefellIcons.kt`, shared pieces such as section cards,
-  banners and empty states in `ui/Components.kt`.
+  screenshot test, and a new page a large-screen one too; see the README. A page's content
+  uses `Modifier.pageWidth()`, so it stays readable on tablets and open foldables.
+- **Look:** colours, type, spacing, sizes and corner radii are design tokens in `design/`,
+  shared with the website and, later, the Apple apps; change them there
+  ([design/README.md](design/README.md)), never in Kotlin or resources. `ui/Theme.kt` gives
+  the colours, text styles and radii to Material. A screen uses theme roles (and
+  `statusColors` for fine or needs-attention states), never a colour of its own, and
+  `TidefellSpace` and `TidefellSize` rather than a number of dp; a size that belongs to one
+  screen, such as the QR code's, is a named value there. Icons are in `ui/TidefellIcons.kt`,
+  shared pieces such as section cards, banners and empty states in `ui/Components.kt`.
 - **Commits:** Conventional Commits; see [CONTRIBUTING.md](https://github.com/tidefell/tidefell/blob/main/CONTRIBUTING.md).
 
 ## Read first
