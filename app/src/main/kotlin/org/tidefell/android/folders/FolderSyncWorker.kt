@@ -18,10 +18,11 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import org.tidefell.android.Peer
 import org.tidefell.android.R
+import org.tidefell.android.Usage
+import java.util.concurrent.TimeUnit
 
 /**
  * Syncs phone folders while the app is closed: scans them, then keeps the node running until a
@@ -32,12 +33,19 @@ class FolderSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
     override suspend fun doWork(): Result {
         Peer.init(applicationContext)
         if (!Peer.paired) return Result.success()
+        Usage.add(applicationContext, Usage.WORKER_RUNS)
+        return Usage.timed(applicationContext, Usage.WORKER_MS) { sync() }
+    }
+
+    private suspend fun sync(): Result {
         runCatching { setForeground(getForegroundInfo()) }
             .onFailure { Log.w(TAG, "running without a foreground notification", it) }
         return try {
             val node = Peer.start()
             val phoneFolders = node.folders().filterNot(PhoneFolders::inAppStorage)
-            for (folder in phoneFolders) node.scan(folder.id)
+            Usage.timed(applicationContext, Usage.SCAN_MS) {
+                for (folder in phoneFolders) node.scan(folder.id)
+            }
             val started = System.currentTimeMillis()
             while (System.currentTimeMillis() - started < MAX_WAIT_MS) {
                 PhoneFolders.removeBackedUp(node)

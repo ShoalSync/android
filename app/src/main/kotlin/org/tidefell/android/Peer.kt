@@ -2,7 +2,7 @@ package org.tidefell.android
 
 import android.content.Context
 import android.content.SharedPreferences
-import java.io.File
+import android.os.SystemClock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -19,6 +19,7 @@ import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
 import org.tidefell.ffi.Relay
 import org.tidefell.ffi.isPaired
+import java.io.File
 
 /** This device's peer: one [Node] per process, started once the device is paired. */
 object Peer {
@@ -70,6 +71,8 @@ object Peer {
             node.setLimits(settings.limits())
             stopped.value = null
             running.value = node
+            startedAt = SystemClock.elapsedRealtime()
+            Usage.add(app, Usage.NODE_STARTS)
             Housekeeping.start(app, node, events)
         }
     }
@@ -80,10 +83,26 @@ object Peer {
     suspend fun stop() = lock.withLock {
         Housekeeping.stop()
         running.value?.let { node ->
+            for ((key, amount) in live(node)) Usage.add(app, key, amount)
             running.value = null
             node.shutdown()
             node.close()
         }
+    }
+
+    /** When the running node started, by the elapsed-time clock. */
+    private var startedAt = 0L
+
+    /** What the running node has done that [Usage] has not counted yet. */
+    fun live(): Map<String, Long> = running.value?.let(::live) ?: emptyMap()
+
+    private fun live(node: Node): Map<String, Long> {
+        val transfer = runCatching { node.transfer() }.getOrNull()
+        return mapOf(
+            Usage.NODE_MS to SystemClock.elapsedRealtime() - startedAt,
+            Usage.BYTES_SENT to (transfer?.sent?.toLong() ?: 0),
+            Usage.BYTES_RECEIVED to (transfer?.received?.toLong() ?: 0),
+        )
     }
 
     /** Starts the node again after it stopped by itself. */

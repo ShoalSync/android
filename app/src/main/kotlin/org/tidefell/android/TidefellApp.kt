@@ -5,6 +5,7 @@ import android.system.Os
 import android.util.Log
 import org.tidefell.ffi.initDiagnostics
 import org.tidefell.ffi.recordCrash
+import org.tidefell.ffi.setKeyVault
 import java.io.File
 
 class TidefellApp : Application() {
@@ -20,6 +21,9 @@ class TidefellApp : Application() {
         // Engine logs go to logcat and to files a report can include, and panics to crash files
         // (ADR 0030). The app's own uncaught exceptions are recorded the same way.
         File(Peer.dataDir).mkdirs()
+        // The device key is sealed by the Android Keystore, not a plain file (ADR 0038); a plain
+        // one from an earlier version moves in the first time the key is used.
+        setKeyVault(KeystoreVault(File(Peer.dataDir, "device.key.sealed")))
         runCatching { initDiagnostics(Peer.dataDir, "info") }
             .onFailure { Log.w(TAG, "starting diagnostics failed", it) }
         val previous = Thread.getDefaultUncaughtExceptionHandler()

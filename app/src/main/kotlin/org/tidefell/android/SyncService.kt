@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +26,15 @@ class SyncService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** When the service started, by the elapsed-time clock, or 0 before it has. */
+    private var startedAt = 0L
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        if (startedAt == 0L) {
+            startedAt = SystemClock.elapsedRealtime()
+            Usage.add(this, Usage.SERVICE_STARTS)
+        }
         if (!Peer.settings.localDiscovery) {
             multicast?.release()
             multicast = null
@@ -55,6 +63,7 @@ class SyncService : Service() {
     }
 
     override fun onDestroy() {
+        if (startedAt != 0L) Usage.add(this, Usage.SERVICE_MS, SystemClock.elapsedRealtime() - startedAt)
         multicast?.release()
         multicast = null
         scope.cancel()

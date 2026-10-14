@@ -5,7 +5,6 @@ import android.provider.DocumentsContract
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -23,8 +22,10 @@ import org.tidefell.ffi.PairingUpdate
 import org.tidefell.ffi.ProblemKind
 import org.tidefell.ffi.crashReport
 import org.tidefell.ffi.crashes
+import org.tidefell.ffi.deviceId
 import org.tidefell.ffi.dismissCrashes
 import org.tidefell.ffi.recordCrash
+import java.io.File
 
 /**
  * The exit criteria on an emulator against a real `tidefelld` on the host (see
@@ -90,6 +91,9 @@ class ExitCriterionTest {
         assertTrue("$paired", paired is PairingUpdate.Paired)
         pairing.close()
         assertTrue(Peer.paired)
+        // Only the Keystore-sealed device key is in the app's storage (ADR 0038).
+        assertFalse("no plain device key", File(Peer.dataDir, "device.key").exists())
+        assertTrue("a sealed device key", File(Peer.dataDir, "device.key.sealed").exists())
         val offers = (paired as PairingUpdate.Paired).folders
         val photos = offers.single { it.name == "Photos" }
         val cameraOffer = offers.single { it.name == "Camera" }
@@ -226,7 +230,33 @@ class ExitCriterionTest {
         delay(10_000)
     }
 
+    /** Phase 5l: a device key left as a plain file by an earlier version moves into the Keystore. */
+    @Test
+    fun aPlainDeviceKeyMovesIntoTheKeystore() = runBlocking {
+        Peer.init(InstrumentationRegistry.getInstrumentation().targetContext)
+        Peer.stop()
+        val dir = File(Peer.dataDir)
+        dir.deleteRecursively()
+        dir.mkdirs()
+        // As an earlier version left it: the seed in hex, in a file of its own.
+        File(dir, "device.key").writeText("tidefell-device-key 1\n${"07".repeat(SEED_BYTES)}\n")
+
+        // The same device, with the key now sealed and the plain file gone.
+        assertEquals(SEED_SEVENS_ID, deviceId(Peer.dataDir))
+        assertFalse("no plain device key", File(dir, "device.key").exists())
+        val sealed = File(dir, "device.key.sealed").readBytes().toList()
+        assertFalse("the seed is not in the sealed file", sealed.windowed(SEED_BYTES).any { w -> w.all { it == SEVEN } })
+        assertEquals(SEED_SEVENS_ID, deviceId(Peer.dataDir))
+        dir.deleteRecursively()
+        Unit
+    }
+
     companion object {
         private const val TAG = "ExitCriterion"
+        private const val SEED_BYTES = 32
+        private const val SEVEN: Byte = 7
+
+        /** The Ed25519 public key of a seed of 32 sevens. */
+        private const val SEED_SEVENS_ID = "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
     }
 }

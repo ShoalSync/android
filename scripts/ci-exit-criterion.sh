@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs the Phase 4 and 5d exit criteria (ExitCriterionTest) on a running emulator against the pinned
-# release's tidefelld on this host.
+# Runs the Phase 4, 5d and 5l exit criteria (ExitCriterionTest) on a running emulator against the
+# pinned release's tidefelld on this host.
 #
 # Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
 # the ability to add 10.0.2.2 to the loopback interface (sudo). Arguments are passed on to Gradle,

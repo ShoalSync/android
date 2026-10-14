@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.tidefell.android.Peer
+import org.tidefell.android.Usage
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.design.TidefellIcons
@@ -160,6 +161,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application),
                     .put("limit_local", settings.limitLocal)
                     .put("report_url_set", settings.reportUrl.isNotEmpty()),
             )
+            .put("usage", Usage.toJson(app, Peer.live()))
     }
 }
 
