@@ -25,6 +25,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 minutes=${BENCH_MINUTES:-10}
+# Which scenarios to run, for looking into one: idle_service, receive, backup.
+scenarios=" ${BENCH_SCENARIOS:-idle_service receive backup} "
 mib=${BENCH_MIB:-1024}
 package=org.tidefell.android
 work=$(mktemp -d)
@@ -67,7 +69,8 @@ mkdir -p "$work/In" "$work/Camera"
     printf 'retention_days = 30\nscan_interval_secs = 5\n'
   done
 } > "$work/tidefelld.toml"
-tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
+# BENCH_DAEMON_LOG sets the host's log filter, such as "info,tidefell_engine=debug".
+RUST_LOG="${BENCH_DAEMON_LOG:-info}" tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
 pids+=($!)
 for _ in $(seq 1 30); do
   [ -S "$work/host/control.sock" ] && break
@@ -209,27 +212,35 @@ sleep 10
 adb shell input keyevent KEYCODE_HOME
 adb shell input keyevent KEYCODE_SLEEP
 sleep 60
-begin
-sleep $(( minutes * 60 ))
-finish idle_service hour
+if [[ $scenarios == *" idle_service "* ]]; then
+  begin
+  sleep $(( minutes * 60 ))
+  finish idle_service hour
+fi
 
 # 2. Receiving: the host adds files to the two-way folder.
-begin
-for i in $(seq 1 "$files"); do head -c "$size" /dev/urandom > "$work/In/file-$i.bin"; done
-wait_for_bytes /sdcard/TidefellBench/In phone $(( size * files ))
-finish receive gib
+if [[ $scenarios == *" receive "* ]]; then
+  begin
+  for i in $(seq 1 "$files"); do head -c "$size" /dev/urandom > "$work/In/file-$i.bin"; done
+  wait_for_bytes /sdcard/TidefellBench/In phone $(( size * files ))
+  finish receive gib
+fi
 
-# 3. Backing up: photos added to the phone folder while the peer runs, which scans it on its own.
-# They are copied to the phone first and moved in at once, so copying them is not measured.
-adb shell mkdir -p /sdcard/TidefellBench/staging /sdcard/DCIM/TidefellBench
-for i in $(seq 1 "$files"); do
-  head -c "$size" /dev/urandom > "$work/photo.jpg"
-  adb push -q "$work/photo.jpg" "/sdcard/TidefellBench/staging/IMG_$i.jpg" > /dev/null
-done
-begin
-adb shell 'mv /sdcard/TidefellBench/staging/* /sdcard/DCIM/TidefellBench/'
-wait_for_bytes "$work/Camera" host $(( size * files ))
-finish backup gib
+if [[ $scenarios == *" backup "* ]]; then
+  # 3. Backing up: photos added to the phone folder while the peer runs, which scans it on its own.
+  # They are copied to the phone first and moved in at once, so copying them is not measured.
+  adb shell mkdir -p /sdcard/TidefellBench/staging /sdcard/DCIM/TidefellBench
+  for i in $(seq 1 "$files"); do
+    head -c "$size" /dev/urandom > "$work/photo.jpg"
+    adb push -q "$work/photo.jpg" "/sdcard/TidefellBench/staging/IMG_$i.jpg" > /dev/null
+  done
+  begin
+  adb shell 'mv /sdcard/TidefellBench/staging/* /sdcard/DCIM/TidefellBench/'
+  # A mark in the phone's log, to time what follows by the phone's own clock.
+  adb shell log -t BatteryBench "photos moved in"
+  wait_for_bytes "$work/Camera" host $(( size * files ))
+  finish backup gib
+fi
 
 device=$(adb shell getprop ro.product.model | tr -d '\r')
 kind=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
