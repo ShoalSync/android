@@ -2,8 +2,6 @@ package org.tidefell.android.folders
 
 import android.content.Context
 import android.media.MediaScannerConnection
-import android.util.Log
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -18,9 +16,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import org.tidefell.android.AppLog
 import org.tidefell.android.Notifications
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
+import java.io.File
 
 /**
  * Work that follows the node's events while it runs: files written into or removed from phone
@@ -40,15 +40,17 @@ object Housekeeping {
     @Synchronized
     fun start(context: Context, node: Node, events: Flow<NodeEvent>) {
         job?.cancel()
+        AppLog.d(TAG, "started")
         val app = context.applicationContext
         job = scope.launch {
             runCatching { FolderSync.schedule(app, node.folders().any { !PhoneFolders.inAppStorage(it) }) }
-                .onFailure { Log.w(TAG, "scheduling background sync failed", it) }
+                .onFailure { AppLog.w(TAG, "scheduling background sync failed", it) }
             launch {
                 events.collect { event ->
                     if (event is NodeEvent.ConflictDetected) {
+                        AppLog.i(TAG, "conflict in ${event.path}")
                         runCatching { Notifications.conflict(app, node, event.folder, event.path) }
-                            .onFailure { Log.w(TAG, "notifying a conflict failed", it) }
+                            .onFailure { AppLog.w(TAG, "notifying a conflict failed", it) }
                         return@collect
                     }
                     val (folder, path) = when (event) {
@@ -57,7 +59,7 @@ object Housekeeping {
                         else -> return@collect
                     }
                     runCatching { announce(app, node, folder, path) }
-                        .onFailure { Log.w(TAG, "announcing $path failed", it) }
+                        .onFailure { AppLog.w(TAG, "announcing $path failed", it) }
                 }
             }
             // Confirmations from full replicas arrive without an event, so look again every so
@@ -73,8 +75,7 @@ object Housekeeping {
                 .debounce(SETTLE_MS)
                 .collect {
                     runCatching { PhoneFolders.removeBackedUp(node) }
-                        .onSuccess { if (it > 0) Log.i(TAG, "removed $it backed-up files") }
-                        .onFailure { Log.w(TAG, "remove after backup failed", it) }
+                        .onFailure { AppLog.w(TAG, "remove after backup failed", it) }
                 }
         }
     }

@@ -10,7 +10,6 @@ import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.SystemClock
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,6 +33,7 @@ class SyncService : Service() {
         if (startedAt == 0L) {
             startedAt = SystemClock.elapsedRealtime()
             Usage.add(this, Usage.SERVICE_STARTS)
+            AppLog.i(TAG, "started; local discovery ${Peer.settings.localDiscovery}")
         }
         if (!Peer.settings.localDiscovery) {
             multicast?.release()
@@ -47,7 +47,7 @@ class SyncService : Service() {
                 }
         }
         scope.launch {
-            runCatching { Peer.start() }.onFailure { Log.e(TAG, "starting the peer failed", it) }
+            runCatching { Peer.start() }.onFailure { AppLog.e(TAG, "starting the peer failed", it) }
         }
         return START_STICKY
     }
@@ -58,12 +58,16 @@ class SyncService : Service() {
      * consistent. The service starts again the next time the app is opened.
      */
     override fun onTimeout(startId: Int, fgsType: Int) {
-        Log.i(TAG, "foreground time limit reached; stopping")
+        AppLog.i(TAG, "foreground time limit reached; stopping")
         stopSelf()
     }
 
     override fun onDestroy() {
-        if (startedAt != 0L) Usage.add(this, Usage.SERVICE_MS, SystemClock.elapsedRealtime() - startedAt)
+        if (startedAt != 0L) {
+            val ms = SystemClock.elapsedRealtime() - startedAt
+            Usage.add(this, Usage.SERVICE_MS, ms)
+            AppLog.i(TAG, "stopped after ${ms / MS_PER_S} s")
+        }
         multicast?.release()
         multicast = null
         scope.cancel()
@@ -87,6 +91,7 @@ class SyncService : Service() {
         private const val TAG = "SyncService"
         private const val CHANNEL = "sync"
         private const val NOTIFICATION_ID = 1
+        private const val MS_PER_S = 1000
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, SyncService::class.java))

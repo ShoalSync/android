@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.tidefell.android.AppLog
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.PhoneStorage
 import org.tidefell.android.folders.SyncChoice
@@ -99,7 +100,10 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
         current.value = Step.Working
         viewModelScope.launch {
             current.value = runCatching { add() }
-                .fold({ Step.Done(it) }, { Step.Failed(it.message ?: it.toString()) })
+                .fold({ Step.Done(it) }, {
+                    AppLog.w(TAG, "adding a folder failed", it)
+                    Step.Failed(it.message ?: it.toString())
+                })
         }
     }
 
@@ -109,5 +113,9 @@ class AddFolderViewModel(application: Application) : AndroidViewModel(applicatio
         val context = getApplication<Application>()
         val places = PhoneStorage.places(context)
         return Step.Pick(dir, places, dir?.let(PhoneStorage::subfolders).orEmpty())
+    }
+
+    private companion object {
+        const val TAG = "AddFolder"
     }
 }

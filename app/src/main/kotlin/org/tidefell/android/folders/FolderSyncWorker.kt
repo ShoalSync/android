@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.provider.MediaStore
-import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -19,6 +18,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.delay
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.android.R
 import org.tidefell.android.Usage
@@ -34,30 +34,38 @@ class FolderSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
         Peer.init(applicationContext)
         if (!Peer.paired) return Result.success()
         Usage.add(applicationContext, Usage.WORKER_RUNS)
+        val trigger = if (inputData.getBoolean(KEY_WATCH, false)) "a new photo or video" else "schedule"
+        AppLog.i(TAG, "background sync started by $trigger, attempt ${runAttemptCount + 1}")
         return Usage.timed(applicationContext, Usage.WORKER_MS) { sync() }
     }
 
     private suspend fun sync(): Result {
         runCatching { setForeground(getForegroundInfo()) }
-            .onFailure { Log.w(TAG, "running without a foreground notification", it) }
+            .onFailure { AppLog.w(TAG, "running without a foreground notification", it) }
         return try {
             val node = Peer.start()
             val phoneFolders = node.folders().filterNot(PhoneFolders::inAppStorage)
             Usage.timed(applicationContext, Usage.SCAN_MS) {
                 for (folder in phoneFolders) node.scan(folder.id)
             }
+            AppLog.i(TAG, "scanned ${phoneFolders.size} phone folders")
             val started = System.currentTimeMillis()
+            var waiting = 0L
             while (System.currentTimeMillis() - started < MAX_WAIT_MS) {
                 PhoneFolders.removeBackedUp(node)
-                val waiting = node.folders().filterNot(PhoneFolders::inAppStorage).sumOf { it.onlyHere.toLong() }
+                waiting = node.folders().filterNot(PhoneFolders::inAppStorage).sumOf { it.onlyHere.toLong() }
                 if (waiting == 0L) break
                 // Nothing can be confirmed without a peer; give up early rather than hold the phone awake.
-                if (node.peers().isEmpty() && System.currentTimeMillis() - started > NO_PEER_MS) break
+                if (node.peers().isEmpty() && System.currentTimeMillis() - started > NO_PEER_MS) {
+                    AppLog.i(TAG, "no device connected; $waiting files wait for the next run")
+                    break
+                }
                 delay(POLL_MS)
             }
+            AppLog.i(TAG, "background sync done after ${(System.currentTimeMillis() - started) / MS_PER_S} s; $waiting files only here")
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "folder sync failed", e)
+            AppLog.e(TAG, "folder sync failed", e)
             Result.retry()
         } finally {
             // A content-triggered run is one-shot; watch for the next new photo.
@@ -85,6 +93,7 @@ class FolderSyncWorker(context: Context, params: WorkerParameters) : CoroutineWo
         private const val MAX_WAIT_MS = 10 * 60_000L
         private const val NO_PEER_MS = 60_000L
         private const val POLL_MS = 15_000L
+        private const val MS_PER_S = 1000
         internal const val KEY_WATCH = "watch"
     }
 }

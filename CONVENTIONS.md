@@ -49,6 +49,10 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
   `IconAction`) are Tidefell's own, in `ui/Controls.kt`, never Material's; a press shades what
   is pressed rather than rippling. Shared pieces such as section cards, banners and empty states
   are in `ui/Components.kt`.
+- **Logging:** with `AppLog`, never `android.util.Log`. Messages go through the engine's logger,
+  into logcat (tag `tidefell`), the log files and diagnostics bundles. Log what runs in the
+  background, what the user asked for, and every failure with its exception; never keys,
+  pairing codes or file contents.
 - **Commits:** Conventional Commits; see [CONTRIBUTING.md](https://github.com/tidefell/tidefell/blob/main/CONTRIBUTING.md).
 
 ## Read first

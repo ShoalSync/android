@@ -5,6 +5,13 @@ style:
     ignorePropertyDeclaration: true
   MaxLineLength:
     maxLineLength: 140
+  ForbiddenImport:
+    active: true
+    # The app logs through AppLog, so its messages reach the log files and diagnostics bundles.
+    imports:
+      - value: "android.util.Log"
+        reason: "Use AppLog, which logs through the engine."
+    excludes: ["**/AppLog.kt", "**/test/**", "**/androidTest/**"]
 complexity:
   LongParameterList:
     # A composable takes its optional look as parameters with defaults, as Compose's own do.

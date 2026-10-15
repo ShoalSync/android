@@ -7,6 +7,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.ffi.FolderOffer
 import org.tidefell.ffi.Pairing
@@ -46,20 +47,30 @@ class PairingViewModel : ViewModel(), PairingModel {
             current.value = Step.Starting
             val started = runCatching { Pairing.start(Peer.dataDir, Peer.settings.network(), Build.MODEL) }
             val session = started.getOrElse {
+                AppLog.w(TAG, "starting pairing failed", it)
                 current.value = Step.Failed(it.message ?: "could not start pairing")
                 return@launch
             }
             pairing = session
+            AppLog.i(TAG, "pairing: showing a code")
             current.value = Step.ShowCode(session.code())
             while (true) {
                 when (val update = session.nextUpdate()) {
-                    is PairingUpdate.Confirming -> current.value = Step.Confirm(update.approverName, update.confirmationCode)
-                    is PairingUpdate.Failed -> current.value = Step.ShowCode(session.code())
+                    is PairingUpdate.Confirming -> {
+                        AppLog.i(TAG, "pairing: ${update.approverName} is approving")
+                        current.value = Step.Confirm(update.approverName, update.confirmationCode)
+                    }
+                    is PairingUpdate.Failed -> {
+                        AppLog.w(TAG, "pairing attempt failed: ${update.reason}")
+                        current.value = Step.ShowCode(session.code())
+                    }
                     is PairingUpdate.Paired -> {
+                        AppLog.i(TAG, "paired as ${update.name}; offered ${update.folders.size} folders")
                         current.value = Step.Join(update.name, update.folders)
                         break
                     }
                     PairingUpdate.Stopped -> {
+                        AppLog.i(TAG, "pairing: the code expired")
                         current.value = Step.Failed("The code expired.")
                         break
                     }
@@ -70,5 +81,9 @@ class PairingViewModel : ViewModel(), PairingModel {
 
     override fun onCleared() {
         pairing?.cancel()
+    }
+
+    private companion object {
+        const val TAG = "Pairing"
     }
 }

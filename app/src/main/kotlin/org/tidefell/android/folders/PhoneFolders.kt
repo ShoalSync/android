@@ -1,18 +1,21 @@
 package org.tidefell.android.folders
 
-import android.util.Log
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.Recycled
+import java.io.File
 
 /** Adding folders, choosing how they sync, and removing files after backup (ADR 0025). */
 object PhoneFolders {
     private const val TAG = "PhoneFolders"
+
+    /** Folder IDs in messages are shortened, as the engine shortens them. */
+    private const val ID_CHARS = 8
     private const val DEFAULT_RETENTION_DAYS = 30u
 
     /** True for a folder in the app's own storage, reached through the documents provider. */
@@ -28,7 +31,10 @@ object PhoneFolders {
         return withContext(Dispatchers.IO) {
             dir.mkdirs()
             node.createFolder(dir.path, null, DEFAULT_RETENTION_DAYS, choice.options)
-        }.also { remember(it.id, choice) }
+        }.also {
+            AppLog.i(TAG, "created folder ${it.id.take(ID_CHARS)} at ${dir.path}, ${choice.name}")
+            remember(it.id, choice)
+        }
     }
 
     /**
@@ -52,6 +58,7 @@ object PhoneFolders {
                 node.joinFolder(offer.id, dir.path, null, offer.members, offer.retentionDays, choice.options)
             }
         }
+        AppLog.i(TAG, "joined folder ${folder.id.take(ID_CHARS)} at ${folder.path}, ${if (dir == null) "files on demand" else choice.name}")
         remember(folder.id, if (dir == null) SyncChoice.FILES_ON_DEMAND else choice)
         return folder
     }
@@ -61,6 +68,7 @@ object PhoneFolders {
         require(!inAppStorage(folder) && choice != SyncChoice.FILES_ON_DEMAND) { "not a phone folder" }
         val node = Peer.start()
         withContext(Dispatchers.IO) { node.setSyncOptions(folder.id, choice.options) }
+        AppLog.i(TAG, "folder ${folder.id.take(ID_CHARS)} now syncs ${choice.name}")
         remember(folder.id, choice)
     }
 
@@ -86,9 +94,10 @@ object PhoneFolders {
                 runCatching { node.removeHere(folder.id, file.path) }
                     .onSuccess { removed++ }
                     // Edited since the last scan, or already gone: the next pass looks again.
-                    .onFailure { Log.i(TAG, "not removing ${file.path} yet: ${it.message}") }
+                    .onFailure { AppLog.i(TAG, "not removing ${file.path} yet: ${it.message}") }
             }
         }
+        if (removed > 0) AppLog.i(TAG, "removed $removed backed-up files from this phone")
         removed
     }
 
@@ -99,6 +108,7 @@ object PhoneFolders {
     suspend fun restore(folder: String, item: Recycled) {
         if (item.hereOnly) Peer.settings.keep(folder, item.entry)
         Peer.start().restore(folder, item.entry)
+        AppLog.i(TAG, "restored ${item.path} in folder ${folder.take(ID_CHARS)}")
     }
 
     /**

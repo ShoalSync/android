@@ -76,7 +76,7 @@ class ExitCriterionTest {
         val context = instrumentation.targetContext
         Peer.init(context)
         Peer.stop()
-        File(Peer.dataDir).deleteRecursively()
+        clearDataDir()
         Peer.foldersDir.deleteRecursively()
         Peer.settings.relay = relay
         Peer.settings.addressLookup = false
@@ -159,6 +159,8 @@ class ExitCriterionTest {
         val text = bundle.entries.joinToString("\n") { it.text }
         assertFalse("no full device ID", text.contains(node.status().device))
         assertFalse("no folder path", text.contains(Peer.foldersDir.path))
+        // The app's own messages are in the engine's log files with the engine's (AppLog).
+        assertTrue("the app's log in the bundle", text.contains("node started"))
         dismissCrashes(Peer.dataDir)
         assertTrue(crashes(Peer.dataDir).all { it.seen })
         Log.i(TAG, "DIAGNOSED status, problems, activity, crash report and bundle")
@@ -236,7 +238,7 @@ class ExitCriterionTest {
         Peer.init(InstrumentationRegistry.getInstrumentation().targetContext)
         Peer.stop()
         val dir = File(Peer.dataDir)
-        dir.deleteRecursively()
+        clearDataDir()
         dir.mkdirs()
         // As an earlier version left it: the seed in hex, in a file of its own.
         File(dir, "device.key").writeText("tidefell-device-key 1\n${"07".repeat(SEED_BYTES)}\n")
@@ -247,7 +249,7 @@ class ExitCriterionTest {
         val sealed = File(dir, "device.key.sealed").readBytes().toList()
         assertFalse("the seed is not in the sealed file", sealed.windowed(SEED_BYTES).any { w -> w.all { it == SEVEN } })
         assertEquals(SEED_SEVENS_ID, deviceId(Peer.dataDir))
-        dir.deleteRecursively()
+        clearDataDir()
         Unit
     }
 

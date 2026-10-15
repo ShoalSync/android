@@ -63,7 +63,10 @@ object Peer {
         running.value ?: Node.start(dataDir, settings.network()).also { node ->
             node.subscribe(object : EventListener {
                 override fun onEvent(event: NodeEvent) {
-                    if (event is NodeEvent.Crashed) stopped.value = event.message
+                    if (event is NodeEvent.Crashed) {
+                        AppLog.e(TAG, "the node stopped by itself: ${event.message}")
+                        stopped.value = event.message
+                    }
                     changes.tryEmit(event)
                 }
             })
@@ -73,6 +76,7 @@ object Peer {
             running.value = node
             startedAt = SystemClock.elapsedRealtime()
             Usage.add(app, Usage.NODE_STARTS)
+            AppLog.i(TAG, "node started: ${node.folders().size} folders")
             Housekeeping.start(app, node, events)
         }
     }
@@ -83,7 +87,13 @@ object Peer {
     suspend fun stop() = lock.withLock {
         Housekeeping.stop()
         running.value?.let { node ->
-            for ((key, amount) in live(node)) Usage.add(app, key, amount)
+            val live = live(node)
+            for ((key, amount) in live) Usage.add(app, key, amount)
+            AppLog.i(
+                TAG,
+                "node stopped after ${(live[Usage.NODE_MS] ?: 0) / MS_PER_S} s; sent ${live[Usage.BYTES_SENT]} bytes, " +
+                    "received ${live[Usage.BYTES_RECEIVED]}",
+            )
             running.value = null
             node.shutdown()
             node.close()
@@ -107,12 +117,19 @@ object Peer {
 
     /** Starts the node again after it stopped by itself. */
     suspend fun restart(): Node {
+        AppLog.i(TAG, "restarting the node")
         // A node that crashed may fail to shut down cleanly; its saved state is what counts.
-        runCatching { stop() }.onFailure { running.value = null }
+        runCatching { stop() }.onFailure {
+            AppLog.w(TAG, "stopping the node failed", it)
+            running.value = null
+        }
         return start()
     }
 
     fun folderName(folder: Folder): String = File(folder.path).name
+
+    private const val TAG = "Peer"
+    private const val MS_PER_S = 1000
 }
 
 /** User settings. */

@@ -55,7 +55,7 @@ class FileNamesTest {
         val context = instrumentation.targetContext
         Peer.init(context)
         Peer.stop()
-        File(Peer.dataDir).deleteRecursively()
+        clearDataDir()
         Peer.foldersDir.deleteRecursively()
         Peer.settings.relay = relay
         Peer.settings.addressLookup = false

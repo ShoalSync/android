@@ -43,6 +43,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.android.Usage
 import org.tidefell.android.folders.PhoneFolders
@@ -104,6 +105,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application),
         viewModelScope.launch {
             checksState.value = withContext(Dispatchers.IO) {
                 runCatching { Peer.start().doctor() + phoneChecks() }.getOrElse {
+                    AppLog.w("Status", "checking the phone failed", it)
                     errorState.value = it.message ?: it.toString()
                     null
                 }
@@ -132,6 +134,7 @@ class StatusViewModel(application: Application) : AndroidViewModel(application),
                     val dir = File(app.cacheDir, "diagnostics").path
                     Peer.start().diagnostics(dir, false, appInfo().toString())
                 }.getOrElse {
+                    AppLog.w("Status", "building a diagnostics bundle failed", it)
                     errorState.value = it.message ?: it.toString()
                     null
                 }

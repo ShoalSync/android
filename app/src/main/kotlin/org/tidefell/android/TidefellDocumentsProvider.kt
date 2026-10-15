@@ -10,11 +10,7 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import android.provider.DocumentsContract.Root
 import android.provider.DocumentsProvider
-import android.util.Log
 import android.webkit.MimeTypeMap
-import java.io.File
-import java.io.FileNotFoundException
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +20,9 @@ import org.tidefell.android.folders.OnOtherDevices
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.NodeEvent
+import java.io.File
+import java.io.FileNotFoundException
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Every folder as a root in the system file picker and Files app. Listings come from the folder's
@@ -168,6 +167,7 @@ class TidefellDocumentsProvider : DocumentsProvider() {
             val local = try {
                 runBlocking { node.open(folder, path) }
             } catch (e: Exception) {
+                AppLog.w(TAG, "opening $path failed", e)
                 throw FileNotFoundException("$path: ${e.message}")
             }
             return ParcelFileDescriptor.open(File(local), access, closeHandler) {
@@ -187,7 +187,8 @@ class TidefellDocumentsProvider : DocumentsProvider() {
             scope.launch {
                 if (error == null) {
                     runCatching { node.write(folder, path, temp.path) }
-                        .onFailure { Log.e(TAG, "saving $path failed", it) }
+                        .onSuccess { AppLog.i(TAG, "saved $path from another app") }
+                        .onFailure { AppLog.e(TAG, "saving $path failed", it) }
                 }
                 pending.remove(documentId)
                 temp.delete()

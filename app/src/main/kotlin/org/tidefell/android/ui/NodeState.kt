@@ -1,6 +1,5 @@
 package org.tidefell.android.ui
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.ffi.Node
 
@@ -40,7 +40,7 @@ private suspend fun <T> readOrInitial(node: Node, initial: T, read: suspend (Nod
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w("NodeState", "reading from the node failed", e)
+        AppLog.w("NodeState", "reading from the node failed", e)
         initial
     }
 

@@ -57,6 +57,7 @@ class KeystoreVault(private val file: File) : KeyVault {
         } catch (e: IllegalStateException) {
             e
         }
+        AppLog.e(TAG, "the device key cannot be $done", error)
         throw TidefellException.Failed("the device key cannot be $done: $error")
     }
 
@@ -64,6 +65,7 @@ class KeystoreVault(private val file: File) : KeyVault {
         val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         (store.getKey(ALIAS, null) as? SecretKey)?.let { return it }
         check(create) { "the Keystore holds no key $ALIAS" }
+        AppLog.i(TAG, "making the Keystore key that seals the device key")
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
         generator.init(
             KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
@@ -76,6 +78,7 @@ class KeystoreVault(private val file: File) : KeyVault {
     }
 
     private companion object {
+        const val TAG = "KeystoreVault"
         const val KEYSTORE = "AndroidKeyStore"
         const val ALIAS = "tidefell-device-key"
         const val TRANSFORMATION = "AES/GCM/NoPadding"

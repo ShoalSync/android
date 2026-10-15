@@ -1,6 +1,5 @@
 package org.tidefell.android.ui
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.android.folders.PhoneFolders
 import org.tidefell.android.folders.Removable
@@ -146,7 +146,7 @@ class HomeViewModel : ViewModel(), HomeModel {
 
     init {
         viewModelScope.launch {
-            runCatching { Peer.start() }.onFailure { Log.e(TAG, "starting the node failed", it) }
+            runCatching { Peer.start() }.onFailure { AppLog.e(TAG, "starting the node failed", it) }
         }
         viewModelScope.launch {
             Navigation.requests.collect { page ->
@@ -180,91 +180,91 @@ class HomeViewModel : ViewModel(), HomeModel {
     /** Files of the open folder that clean up would move to this phone's recycle bin. */
     override fun cleanUpCandidates(): List<File> = Removable.confirmed(files.value)
 
-    override fun cleanUp(folder: String, paths: List<String>) = act {
+    override fun cleanUp(folder: String, paths: List<String>) = act("cleanUp") {
         val removed = PhoneFolders.removeHere(folder, paths)
         "Moved ${files(removed)} to this phone's recycle bin. Your other devices keep ${if (removed == 1) "it" else "them"}."
     }
 
-    override fun removeHere(folder: String, path: String) = act {
+    override fun removeHere(folder: String, path: String) = act("removeHere") {
         PhoneFolders.removeHere(folder, listOf(path))
         "Moved $path to this phone's recycle bin. Your other devices keep it."
     }
 
-    override fun download(folder: String, path: String) = act {
+    override fun download(folder: String, path: String) = act("download") {
         PhoneFolders.download(folder, path)
         "Downloaded $path to this phone."
     }
 
-    override fun deleteEverywhere(folder: String, path: String) = act {
+    override fun deleteEverywhere(folder: String, path: String) = act("deleteEverywhere") {
         Peer.start().delete(folder, path)
         "Deleted $path from all your devices. Each keeps it in its recycle bin."
     }
 
-    override fun restore(folder: String, item: Recycled) = act {
+    override fun restore(folder: String, item: Recycled) = act("restore") {
         PhoneFolders.restore(folder, item)
         if (item.hereOnly) "Restored ${item.path} on this phone." else "Restored ${item.path} on all your devices."
     }
 
-    override fun discard(folder: String, item: Recycled) = act {
+    override fun discard(folder: String, item: Recycled) = act("discard") {
         withContext(Dispatchers.IO) { Peer.start().discard(folder, item.entry) }
         "Deleted ${item.path} from this phone for good."
     }
 
-    override fun emptyRecycleBin(folder: String) = act {
+    override fun emptyRecycleBin(folder: String) = act("emptyRecycleBin") {
         val removed = withContext(Dispatchers.IO) { Peer.start().emptyRecycleBin(folder) }
         "Deleted ${files(removed.size)} from this phone for good."
     }
 
-    override fun pause(folder: String?) = act {
+    override fun pause(folder: String?) = act("pause") {
         withContext(Dispatchers.IO) { Peer.start().pause(folder) }
         if (folder == null) "Syncing is paused on this phone." else "Syncing of this folder is paused."
     }
 
-    override fun resume(folder: String?) = act {
+    override fun resume(folder: String?) = act("resume") {
         withContext(Dispatchers.IO) { Peer.start().resume(folder) }
         "Syncing again."
     }
 
     /** Renames [from] to [to] on all devices: offered for a name this phone cannot store (ADR 0033). */
-    override fun rename(folder: String, from: String, to: String) = act {
+    override fun rename(folder: String, from: String, to: String) = act("rename") {
         Peer.start().rename(folder, from, to)
         "Renamed $from to $to on all your devices."
     }
 
     /** Keeps [path] on this phone, fetched and never removed to save space (ADR 0029). */
-    override fun pin(folder: String, path: String) = act {
+    override fun pin(folder: String, path: String) = act("pin") {
         Peer.start().pin(folder, path)
         "$path stays on this phone."
     }
 
-    override fun unpin(folder: String, path: String) = act {
+    override fun unpin(folder: String, path: String) = act("unpin") {
         Peer.start().unpin(folder, path)
         "$path may be removed from this phone again to save space."
     }
 
-    override fun restoreVersion(folder: String, path: String, version: Version) = act {
+    override fun restoreVersion(folder: String, path: String, version: Version) = act("restoreVersion") {
         Peer.start().restoreVersion(folder, path, version.id)
         "Restored the earlier version of $path on all your devices."
     }
 
     /** Keeps [keep], a version's ID or `both` (ADR 0029). */
-    override fun resolve(folder: String, path: String, keep: String) = act {
+    override fun resolve(folder: String, path: String, keep: String) = act("resolve") {
         Peer.start().resolve(folder, path, keep)
         current.value = Page.Files(folder)
         if (keep == "both") "Kept both versions of $path on all your devices." else "Kept the version you chose on all your devices."
     }
 
-    override fun confirmDeletes(folder: String) = act {
+    override fun confirmDeletes(folder: String) = act("confirmDeletes") {
         Peer.start().confirmDeletes(folder)
         "Deleted the files from all your devices. Each keeps them in its recycle bin."
     }
 
-    override fun restoreDeleted(folder: String) = act {
+    override fun restoreDeleted(folder: String) = act("restoreDeleted") {
         Peer.start().restoreDeleted(folder)
         "Bringing the files back from your other devices."
     }
 
-    override fun retryProblems(folder: String) = act {
+    override fun retryProblems(folder: String) = act("retryProblems") {
         withContext(Dispatchers.IO) { Peer.start().retryProblems(folder) }
         "Trying again."
     }
@@ -277,21 +277,27 @@ class HomeViewModel : ViewModel(), HomeModel {
             Peer.start().openVersion(folder, path, version.id)
         }
 
-    override fun dismissCrashes() = act {
+    override fun dismissCrashes() = act("dismissCrashes") {
         withContext(Dispatchers.IO) { org.tidefell.ffi.dismissCrashes(Peer.dataDir) }
         ""
     }
 
     /** Starts syncing again after the node stopped by itself. */
-    override fun restart() = act {
+    override fun restart() = act("restart") {
         Peer.restart()
         "Syncing again."
     }
 
-    /** Runs [action] and shows what it returns, or its error. */
-    private fun act(action: suspend () -> String) {
+    /** Runs [action], the user's [what], and shows what it returns, or its error. */
+    private fun act(what: String, action: suspend () -> String) {
         viewModelScope.launch {
-            messages.value = runCatching { action() }.getOrElse { it.message ?: it.toString() }.ifEmpty { null }
+            AppLog.i(TAG, what)
+            messages.value = runCatching { action() }
+                .getOrElse {
+                    AppLog.w(TAG, "$what failed", it)
+                    it.message ?: it.toString()
+                }
+                .ifEmpty { null }
             changes.update { it + 1 }
         }
     }

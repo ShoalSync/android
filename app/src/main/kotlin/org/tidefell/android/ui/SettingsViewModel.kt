@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.tidefell.android.AppLog
 import org.tidefell.android.Peer
 import org.tidefell.android.SyncService
 import org.tidefell.android.folders.FolderSync
@@ -38,6 +39,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     override fun setLocalDiscovery(on: Boolean) {
         localDiscoveryState.value = on
         settings.localDiscovery = on
+        AppLog.i(TAG, "local discovery $on; restarting the node")
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 Peer.stop()
@@ -63,9 +65,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         settings.uploadKib = limits.uploadKib
         settings.downloadKib = limits.downloadKib
         settings.limitLocal = limits.limitLocal
+        AppLog.i(TAG, "limits: upload ${limits.uploadKib} KiB/s, download ${limits.downloadKib} KiB/s, local ${limits.limitLocal}")
         viewModelScope.launch {
             limitsError.value = withContext(Dispatchers.IO) {
-                runCatching { Peer.start().setLimits(settings.limits()) }.exceptionOrNull()?.let { it.message ?: it.toString() }
+                runCatching { Peer.start().setLimits(settings.limits()) }.exceptionOrNull()?.let {
+                    AppLog.w(TAG, "applying limits failed", it)
+                    it.message ?: it.toString()
+                }
             }
         }
     }
@@ -102,27 +108,43 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         backgroundState.update(change)
         settings.syncUnmeteredOnly = backgroundState.value.unmeteredOnly
         settings.syncChargingOnly = backgroundState.value.chargingOnly
+        val background = backgroundState.value
+        AppLog.i(TAG, "background sync: unmetered only ${background.unmeteredOnly}, charging only ${background.chargingOnly}")
         FolderSync.schedule(app, folders.value.any { !PhoneFolders.inAppStorage(it) })
     }
 
     override fun syncNow() {
+        AppLog.i(TAG, "sync now")
         FolderSync.now(app)
     }
 
-    override fun setChoice(folder: Folder, choice: SyncChoice) = act(folder.id) { PhoneFolders.setChoice(folder, choice) }
+    override fun setChoice(folder: Folder, choice: SyncChoice) = act("setChoice ${choice.name}", folder.id) {
+        PhoneFolders.setChoice(folder, choice)
+    }
 
-    override fun setRetention(folder: String, days: UInt) = act(folder) { Peer.start().setRetention(folder, days) }
+    override fun setRetention(folder: String, days: UInt) = act("setRetention $days days", folder) {
+        Peer.start().setRetention(folder, days)
+    }
 
-    override fun rebuild(folder: String) = act(folder) { Peer.start().rebuildFolder(folder) }
+    override fun rebuild(folder: String) = act("rebuild", folder) { Peer.start().rebuildFolder(folder) }
 
-    /** Runs [action] on [Dispatchers.IO] and records its error, if any, against [folder]. */
-    private fun act(folder: String, action: suspend () -> Unit) {
+    /** Runs [action], the user's [what], on [Dispatchers.IO] and records its error, if any, against [folder]. */
+    private fun act(what: String, folder: String, action: suspend () -> Unit) {
         viewModelScope.launch {
+            AppLog.i(TAG, "$what for folder ${folder.take(ID_CHARS)}")
             val error = withContext(Dispatchers.IO) { runCatching { action() }.exceptionOrNull() }
+            error?.let { AppLog.w(TAG, "$what failed", it) }
             errorsByFolder.update { errors ->
                 if (error == null) errors - folder else errors + (folder to (error.message ?: error.toString()))
             }
             changes.update { it + 1 }
         }
+    }
+
+    private companion object {
+        const val TAG = "Settings"
+
+        /** Folder IDs in messages are shortened, as the engine shortens them. */
+        const val ID_CHARS = 8
     }
 }
