@@ -115,6 +115,12 @@ class ScreenshotTest {
     }
 
     @Test
+    fun revoked() {
+        home(FakeHome().apply { status.value = Sample.status.copy(revoked = true) })
+        capture("04-folders-revoked")
+    }
+
+    @Test
     fun pausedWithAnEarlierCrash() {
         home(
             FakeHome().apply {

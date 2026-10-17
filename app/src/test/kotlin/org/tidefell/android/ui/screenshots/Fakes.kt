@@ -202,7 +202,7 @@ object Sample {
         Version("conflict:1", VersionKind.CONFLICT, 47_200u, minutesAgo(40), PHONE, "Pixel 8", null, null),
     )
 
-    val status get() = DeviceStatus(PHONE, "f".repeat(64), "Pixel 8", false)
+    val status get() = DeviceStatus(PHONE, "f".repeat(64), "Pixel 8", false, false)
 
     val crash get() = Crash("crash-1", "crash-1.txt", minutesAgo(60), "the scan task panicked: index out of bounds", false)
 

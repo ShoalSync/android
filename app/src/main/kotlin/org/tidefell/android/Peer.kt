@@ -3,6 +3,7 @@ package org.tidefell.android
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
+import androidx.core.content.edit
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -139,6 +140,11 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getString("relay", "") ?: ""
         set(value) = prefs.edit().putString("relay", value.trim()).apply()
 
+    /** Token for a relay that admits only holders of it; empty for a relay that admits anyone. */
+    var relayToken: String
+        get() = prefs.getString("relay_token", "") ?: ""
+        set(value) = prefs.edit { putString("relay_token", value.trim()) }
+
     /** Publish and resolve addresses through DNS. Off only for tests on closed networks. */
     var addressLookup: Boolean
         get() = prefs.getBoolean("address_lookup", true)
@@ -217,7 +223,11 @@ class Settings(private val prefs: SharedPreferences) {
     )
 
     fun network(): Network = Network(
-        relay = if (relay.isEmpty()) Relay.Default else Relay.Custom(listOf(relay)),
+        relay = if (relay.isEmpty()) {
+            Relay.Default
+        } else {
+            Relay.Custom(listOf(relay), relayToken.ifEmpty { null })
+        },
         addressLookup = addressLookup,
         localDiscovery = localDiscovery,
         bind = null,

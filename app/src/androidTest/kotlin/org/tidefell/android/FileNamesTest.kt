@@ -58,6 +58,7 @@ class FileNamesTest {
         clearDataDir()
         Peer.foldersDir.deleteRecursively()
         Peer.settings.relay = relay
+        Peer.settings.relayToken = InstrumentationRegistry.getArguments().getString("tidefellRelayToken") ?: ""
         Peer.settings.addressLookup = false
         Peer.settings.localDiscovery = false
 

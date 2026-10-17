@@ -33,8 +33,18 @@ import org.tidefell.ffi.Folder
 @Composable
 private fun DevicePause(model: HomeModel) {
     val status by model.status.collectAsStateWithLifecycle()
-    val paused = status?.paused ?: return
-    if (paused) {
+    val current = status ?: return
+    if (current.revoked) {
+        // Nothing to pause: it syncs with no one (ADR 0040).
+        Banner(
+            TidefellIcons.Error,
+            "This phone was revoked from another of your devices, so it syncs with no one. " +
+                "To use it again, clear the app's storage and pair it again.",
+            modifier = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Sm),
+        )
+        return
+    }
+    if (current.paused) {
         Banner(
             TidefellIcons.Pause,
             "Syncing is paused on this phone. Changes here are recorded and sent when it resumes.",
