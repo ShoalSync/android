@@ -330,6 +330,23 @@ class ScreenshotTest {
         capture("19-files-held-deletes-list")
     }
 
+    private fun documentsWithdrawing() = documentsWith(Sample.documents.copy(conflicts = 0u, problems = 0u)).apply {
+        heldWithdrawals.value = listOf(org.tidefell.ffi.HeldWithdrawals("d".repeat(64), Sample.heldDeletes))
+    }
+
+    @Test
+    fun folderHeldWithdrawals() {
+        home(documentsWithdrawing())
+        capture("19-files-held-withdrawals")
+    }
+
+    @Test
+    fun folderHeldWithdrawalsConfirm() {
+        home(documentsWithdrawing())
+        click("Withdraw")
+        capture("19-files-held-withdrawals-confirm")
+    }
+
     @Test
     fun folderHeldDeletesConfirm() {
         home(documentsWith(heldDeletes))

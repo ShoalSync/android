@@ -23,9 +23,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.tidefell.design.TidefellIcons
 import org.tidefell.design.TidefellSpace
 import org.tidefell.ffi.Folder
+import org.tidefell.ffi.HeldWithdrawals
 
 // What keeps a folder from syncing as usual (ADR 0037): its storage is not available, a scan
-// found so many files deleted that the deletes wait for a decision, or the phone is low on space.
+// found so many files deleted that the deletes wait for a decision, a revoked device changed so
+// many files after it was lost that withdrawing them waits for one (ADR 0040), or the phone is
+// low on space.
 
 private val noticePadding = Modifier.padding(horizontal = TidefellSpace.Lg, vertical = TidefellSpace.Xs)
 
@@ -42,6 +45,8 @@ fun FolderNotices(model: HomeModel, folder: Folder) {
         )
     }
     if (folder.heldDeletes > 0UL) HeldDeletes(model, folder)
+    val withdrawals by model.heldWithdrawals.collectAsStateWithLifecycle()
+    withdrawals.forEach { Withdrawals(model, folder, it) }
     folder.lowSpace?.let { reason ->
         Banner(
             TidefellIcons.Warning,
@@ -97,6 +102,63 @@ private fun HeldDeletes(model: HomeModel, folder: Folder) {
                     "Delete everywhere",
                     onClick = {
                         model.confirmDeletes(folder.id)
+                        confirming = false
+                    },
+                    kind = ButtonKind.Danger,
+                )
+            },
+            dismissButton = { ActionButton("Cancel", onClick = { confirming = false }, kind = ButtonKind.Quiet) },
+        )
+    }
+}
+
+/** What to do with a revoked device's changes after its loss: withdraw them or keep them. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Withdrawals(model: HomeModel, folder: Folder, held: HeldWithdrawals) {
+    var showing by rememberSaveable(held.device) { mutableStateOf(false) }
+    var confirming by rememberSaveable(held.device) { mutableStateOf(false) }
+    val count = files(held.paths.size.toLong())
+    Banner(
+        TidefellIcons.Warning,
+        "A device you revoked changed $count here after it was lost: too many to withdraw without asking. " +
+            "Keep them if they are yours.",
+        modifier = noticePadding,
+        action = {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
+                ActionButton("Keep", onClick = { model.decideWithdrawals(folder.id, held.device, false) })
+                ActionButton("Withdraw", onClick = { confirming = true }, kind = ButtonKind.Danger)
+                ActionButton("Show files", onClick = { showing = true }, kind = ButtonKind.Quiet)
+            }
+        },
+    )
+    if (showing) {
+        AlertDialog(
+            onDismissRequest = { showing = false },
+            title = { Text("Changed after the loss") },
+            text = { HeldPaths(held.paths) },
+            confirmButton = { ActionButton("Close", onClick = { showing = false }, kind = ButtonKind.Quiet) },
+        )
+    }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            icon = { Icon(TidefellIcons.Warning, contentDescription = null) },
+            title = { Text("Withdraw these changes?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(TidefellSpace.Md)) {
+                    Text(
+                        "What each change replaced is put back where a device still has it; otherwise the file " +
+                            "goes to the recycle bin, on every device.",
+                    )
+                    HeldPaths(held.paths)
+                }
+            },
+            confirmButton = {
+                ActionButton(
+                    "Withdraw",
+                    onClick = {
+                        model.decideWithdrawals(folder.id, held.device, true)
                         confirming = false
                     },
                     kind = ButtonKind.Danger,

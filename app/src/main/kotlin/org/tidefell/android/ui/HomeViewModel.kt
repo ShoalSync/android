@@ -21,6 +21,7 @@ import org.tidefell.ffi.Crash
 import org.tidefell.ffi.DeviceStatus
 import org.tidefell.ffi.File
 import org.tidefell.ffi.Folder
+import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.Recycled
@@ -113,6 +114,12 @@ class HomeViewModel : ViewModel(), HomeModel {
                 ?.takeIf { page -> folders.value.any { it.id == page.folder && it.heldDeletes > 0UL } }
                 ?.let { node.heldDeletes(it.folder) }
                 ?: emptyList()
+        }
+
+    /** The open folder's held withdrawals of revoked devices' changes (ADR 0040). */
+    override val heldWithdrawals: StateFlow<List<HeldWithdrawals>> =
+        viewModelScope.nodeState(emptyList(), refresh = merge(current, changes)) { node ->
+            (current.value as? Page.Files)?.let { node.heldWithdrawals(it.folder) } ?: emptyList()
         }
 
     /** What this phone applied to the folder whose activity is open. */
@@ -262,6 +269,15 @@ class HomeViewModel : ViewModel(), HomeModel {
     override fun restoreDeleted(folder: String) = act("restoreDeleted") {
         Peer.start().restoreDeleted(folder)
         "Bringing the files back from your other devices."
+    }
+
+    override fun decideWithdrawals(folder: String, device: String, withdraw: Boolean) = act("decideWithdrawals") {
+        Peer.start().decideWithdrawals(folder, device, withdraw)
+        if (withdraw) {
+            "Withdrawing the changes. What they replaced is put back, or the files go to the recycle bin."
+        } else {
+            "Keeping the changes, as if they were made before the device was lost."
+        }
     }
 
     override fun retryProblems(folder: String) = act("retryProblems") {

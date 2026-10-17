@@ -23,6 +23,7 @@ import org.tidefell.ffi.DiagnosticsEntry
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
 import org.tidefell.ffi.FolderState
+import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.Operation
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
@@ -254,6 +255,7 @@ class FakeHome(page: Page = Page.Folders) : HomeModel {
     override val files = MutableStateFlow(Sample.files)
     override val problems = MutableStateFlow(Sample.problems)
     override val heldDeletes = MutableStateFlow(Sample.heldDeletes)
+    override val heldWithdrawals = MutableStateFlow<List<HeldWithdrawals>>(emptyList())
     override val activity = MutableStateFlow(Sample.activity)
     override val recycleBin = MutableStateFlow(Sample.recycled)
     override val versions = MutableStateFlow(Sample.history)
@@ -296,6 +298,7 @@ class FakeHome(page: Page = Page.Folders) : HomeModel {
     override fun resolve(folder: String, path: String, keep: String) = Unit
     override fun confirmDeletes(folder: String) = Unit
     override fun restoreDeleted(folder: String) = Unit
+    override fun decideWithdrawals(folder: String, device: String, withdraw: Boolean) = Unit
     override fun retryProblems(folder: String) = Unit
     override suspend fun openVersion(folder: String, path: String, version: Version): String = ""
     override fun dismissCrashes() = Unit

@@ -9,6 +9,7 @@ import org.tidefell.ffi.DeviceStatus
 import org.tidefell.ffi.DiagnosticsBundle
 import org.tidefell.ffi.Folder
 import org.tidefell.ffi.FolderOffer
+import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
 import org.tidefell.ffi.Recycled
@@ -35,6 +36,9 @@ interface HomeModel {
 
     /** The open folder's files a scan found deleted and held for a decision (ADR 0037). */
     val heldDeletes: StateFlow<List<String>>
+
+    /** The open folder's withdrawals of revoked devices' changes, held for a decision (ADR 0040). */
+    val heldWithdrawals: StateFlow<List<HeldWithdrawals>>
     val activity: StateFlow<List<Activity>>
     val recycleBin: StateFlow<List<Recycled>>
     val versions: StateFlow<List<Version>>
@@ -67,6 +71,9 @@ interface HomeModel {
 
     /** Brings a folder's held deletes back from other devices (ADR 0037). */
     fun restoreDeleted(folder: String)
+
+    /** Withdraws what a revoked device changed after its loss ([withdraw]), or keeps it (ADR 0040). */
+    fun decideWithdrawals(folder: String, device: String, withdraw: Boolean)
 
     /** Tries a folder's failed writes and deletes again (ADR 0037). */
     fun retryProblems(folder: String)
