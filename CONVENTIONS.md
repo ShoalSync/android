@@ -12,9 +12,9 @@ move to a repository of their own.
 
 ## Consumes
 
-- The `tidefell-ffi-X.Y.Z.aar` attached to monorepo releases (ADR 0014), pinned in
-  `gradle/libs.versions.toml` (`tidefell = "X.Y.Z"`) and fetched by `scripts/fetch-ffi.sh`.
-- The same release's `tidefelld` for the emulator exit-criterion test.
+- `tidefell-ffi`, built from the source of the monorepo release pinned in
+  `gradle/libs.versions.toml` (`tidefell = "X.Y.Z"`), which `scripts/monorepo.sh` checks out.
+- The same release's `tidefelld` for the emulator exit-criterion test, built by Nix.
 - The generated Kotlin API in package `org.tidefell.ffi`.
 
 ## Change order
@@ -32,7 +32,7 @@ Work that spans repositories is tracked by one issue in `tidefell/tidefell`, lab
 - **Namespace:** `org.tidefell.android` ([ADR 0002](https://github.com/tidefell/tidefell/blob/main/docs/adr/0002-namespace.md)).
 - **Never hand-write** Kotlin copies of Rust types. If the FFI lacks something, change
   `crates/ffi` in the monorepo first ([ADR 0004](https://github.com/tidefell/tidefell/blob/main/docs/adr/0004-android-ffi.md)).
-- For FFI development, set the `tidefellFfiLocalPath` Gradle property to a local monorepo
+- For FFI development, set the `tidefellFfiLocalPath` Gradle property to another monorepo
   checkout instead of editing the pin.
 - **Screens:** a composable takes its screen's model interface (`ui/Models.kt`), not the view
   model, so screenshot tests can draw it with fixed data. A new screen or state gets a

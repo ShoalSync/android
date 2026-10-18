@@ -5,8 +5,6 @@ plugins {
 }
 
 val ffiVersion: String = libs.versions.tidefell.get()
-val localFfi = providers.gradleProperty("tidefellFfiLocalPath").isPresent
-val pinnedAar = file("libs/tidefell-ffi-$ffiVersion.aar")
 
 android {
     namespace = "org.tidefell.android"
@@ -60,11 +58,8 @@ android {
 }
 
 dependencies {
-    if (localFfi) {
-        implementation("org.tidefell:tidefell-ffi")
-    } else {
-        implementation(files(pinnedAar))
-    }
+    // Built from the monorepo checkout that settings.gradle.kts includes.
+    implementation(libs.tidefell.ffi)
     // The AAR has no POM; these are its own dependencies (bindings/android/README.md).
     implementation(libs.jna) { artifact { type = "aar" } }
     implementation(libs.coroutines.android)
@@ -93,18 +88,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
 }
-
-val checkFfi by tasks.registering {
-    description = "Fails early, with instructions, if the pinned AAR has not been fetched."
-    onlyIf { !localFfi }
-    doLast {
-        check(pinnedAar.exists()) {
-            "Missing ${pinnedAar.path}. Run scripts/fetch-ffi.sh, or build against a monorepo " +
-                "checkout with -PtidefellFfiLocalPath=<path>."
-        }
-    }
-}
-tasks.named("preBuild") { dependsOn(checkFfi) }
 
 // Reference screenshots live beside the tests and are compared on every CI run:
 // `./gradlew :app:recordRoborazziDebug` writes them after a deliberate change to a screen.

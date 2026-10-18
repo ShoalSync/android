@@ -17,12 +17,16 @@ rootProject.name = "tidefell-android"
 
 include(":app")
 
-// FFI development: -PtidefellFfiLocalPath=<monorepo checkout> builds the AAR from source instead
-// of using the pinned release (CONVENTIONS.md, ADR 0014).
-providers.gradleProperty("tidefellFfiLocalPath").orNull?.let { monorepo ->
-    includeBuild("$monorepo/bindings/android") {
-        dependencySubstitution {
-            substitute(module("org.tidefell:tidefell-ffi")).using(project(":ffi"))
-        }
+// tidefell-ffi is built from a monorepo checkout: the pinned release's, which
+// scripts/monorepo.sh puts in build/tidefell, or any other with -PtidefellFfiLocalPath=<path>
+// (CONVENTIONS.md).
+val monorepo = providers.gradleProperty("tidefellFfiLocalPath").orNull ?: "build/tidefell"
+check(file("$monorepo/bindings/android").isDirectory) {
+    "No monorepo checkout at $monorepo. Run scripts/monorepo.sh, or pass " +
+        "-PtidefellFfiLocalPath=<path> to build against another checkout."
+}
+includeBuild("$monorepo/bindings/android") {
+    dependencySubstitution {
+        substitute(module("org.tidefell:tidefell-ffi")).using(project(":ffi"))
     }
 }

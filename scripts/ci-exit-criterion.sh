@@ -4,7 +4,7 @@
 #
 # Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
 # the ability to add 10.0.2.2 to the loopback interface (sudo). Arguments are passed on to Gradle,
-# such as -PtidefellFfiLocalPath=<monorepo> to test a monorepo checkout. The emulator reaches the host's
+# such as -PtidefellFfiLocalPath=<monorepo> to test another monorepo checkout. The emulator reaches the host's
 # loopback as 10.0.2.2; the alias lets the host use the same relay URL.
 set -euo pipefail
 

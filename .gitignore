@@ -1,6 +1,7 @@
 # Gradle files
 .gradle/
-build/
+# Without a trailing slash, so a build directory moved elsewhere behind a symlink stays ignored.
+build
 .kotlin/
 
 # Local configuration file (sdk path, etc)
@@ -34,5 +35,4 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# The tidefell-ffi AAR, fetched by scripts/fetch-ffi.sh
-app/libs/*.aar
+# The monorepo checkout tidefell-ffi is built from (scripts/monorepo.sh) is under build/.

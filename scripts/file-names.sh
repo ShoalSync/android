@@ -4,7 +4,7 @@
 #
 # Needs what scripts/ci-exit-criterion.sh needs, and an emulator image that allows `adb root`
 # (google_apis), to add a virtual SD card formatted as FAT. Arguments are passed on to Gradle,
-# such as -PtidefellFfiLocalPath=<monorepo>/bindings/android to test a monorepo checkout.
+# such as -PtidefellFfiLocalPath=<monorepo> to test another monorepo checkout.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

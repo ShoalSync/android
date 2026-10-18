@@ -14,23 +14,22 @@ file sync with no central server.
 
 ## Building
 
-The app is built against the `tidefell-ffi` AAR attached to the monorepo release pinned in
-[`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`tidefell = "X.Y.Z"`, ADR 0014).
+The app's `tidefell-ffi` is built from the source of the monorepo release pinned in
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`tidefell = "X.Y.Z"`), so building
+needs Rust, the NDK and `cargo-ndk` as well as JDK 21 and the Android SDK (compile SDK 37;
+minimum SDK 30, Android 11, for All files access).
 
 ```sh
-scripts/fetch-ffi.sh          # downloads app/libs/tidefell-ffi-X.Y.Z.aar with gh, checks its sha256
-./gradlew :app:assembleDebug
+scripts/monorepo.sh           # checks out the pinned release in build/tidefell
+./gradlew :app:assembleDebug -Ptidefell.abis=x86_64   # one ABI is quicker while developing
 ```
 
-The monorepo is private, so `gh` needs access to `tidefell/tidefell`. To work on the FFI itself,
-build against a monorepo checkout instead of the pinned AAR (needs the NDK and `cargo-ndk`):
+The monorepo is private, so git needs an SSH key that can read `tidefell/tidefell` on Forgejo.
+To work on the FFI itself, build against another checkout instead:
 
 ```sh
 ./gradlew :app:assembleDebug -PtidefellFfiLocalPath=../tidefell -Ptidefell.abis=x86_64
 ```
-
-Requires JDK 21 and the Android SDK (compile SDK 37; minimum SDK 30, Android 11, for All files
-access).
 
 ## How it works
 
