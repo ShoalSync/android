@@ -43,6 +43,7 @@ class StatusTest {
         partialBudget = null,
         members = emptyList(),
         retentionDays = 30u,
+        encryption = null,
         sync = SyncChoice.TWO_WAY.options,
         recycledFiles = 0u,
         recycledBytes = 0u,

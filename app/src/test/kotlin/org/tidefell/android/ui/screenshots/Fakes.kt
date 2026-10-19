@@ -81,6 +81,7 @@ object Sample {
         partialBudget = partialBudget,
         members = listOf(PHONE),
         retentionDays = 30u,
+        encryption = null,
         sync = sync,
         recycledFiles = recycledFiles,
         recycledBytes = recycledFiles * 2_400_000u,
@@ -242,8 +243,8 @@ object Sample {
     )
 
     val offers get() = listOf(
-        FolderOffer("d".repeat(64), "Documents", listOf(PHONE), 30u),
-        FolderOffer("e".repeat(64), "Family photos", listOf(PHONE), 30u),
+        FolderOffer("d".repeat(64), "Documents", listOf(PHONE), 30u, null),
+        FolderOffer("e".repeat(64), "Family photos", listOf(PHONE), 30u, null),
     )
 }
 

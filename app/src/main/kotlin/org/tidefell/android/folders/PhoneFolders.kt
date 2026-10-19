@@ -30,7 +30,8 @@ object PhoneFolders {
         val node = Peer.start()
         return withContext(Dispatchers.IO) {
             dir.mkdirs()
-            node.createFolder(dir.path, null, DEFAULT_RETENTION_DAYS, choice.options)
+            // Not encrypted: the app does not offer making encrypted folders yet (ADR 0023).
+            node.createFolder(dir.path, null, DEFAULT_RETENTION_DAYS, choice.options, null)
         }.also {
             AppLog.i(TAG, "created folder ${it.id.take(ID_CHARS)} at ${dir.path}, ${choice.name}")
             remember(it.id, choice)
@@ -52,10 +53,12 @@ object PhoneFolders {
                     offer.members,
                     offer.retentionDays,
                     SyncChoice.FILES_ON_DEMAND.options,
+                    offer.encryption,
                 )
             } else {
                 dir.mkdirs()
-                node.joinFolder(offer.id, dir.path, null, offer.members, offer.retentionDays, choice.options)
+                // An encrypted folder is joined as the offer says it is (ADR 0023).
+                node.joinFolder(offer.id, dir.path, null, offer.members, offer.retentionDays, choice.options, offer.encryption)
             }
         }
         AppLog.i(TAG, "joined folder ${folder.id.take(ID_CHARS)} at ${folder.path}, ${if (dir == null) "files on demand" else choice.name}")
