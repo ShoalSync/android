@@ -18,7 +18,7 @@ env:
 jobs:
   build:
     name: Build and unit checks
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -44,7 +44,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      # The runners carry no Android SDK; it is kept in each slot's tool cache.
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
           # The default also asks for `tools`, which the SDK repository no longer carries.
@@ -53,19 +53,20 @@ jobs:
         with:
           toolchain: stable
           targets: x86_64-linux-android
-      # CI builds the emulator's ABI only. The checkout persists per runner slot (beside its
-      # CARGO_HOME), so cargo rebuilds only what changed since that slot's last run.
+      # CI builds the emulator's ABI only. The checkout persists per runner slot (under its
+      # CARGO_HOME, which a container runner keeps between jobs), so cargo rebuilds only what
+      # changed since that slot's last run.
       - name: The pinned monorepo release, cargo-ndk and the NDK
         run: |
           if ! cargo ndk --version 2>/dev/null | grep -q " $CARGO_NDK_VERSION"; then
             cargo install cargo-ndk --locked --version "$CARGO_NDK_VERSION" --force
           fi
           # Steps run with pipefail, and yes ends on SIGPIPE once sdkmanager stops reading. The
-          # runner slots share one SDK, so one sdkmanager runs at a time.
+          # lock keeps one sdkmanager at a time on runners whose slots share an SDK.
           (yes || true) | flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager --licenses > /dev/null
           flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-          monorepo="$(dirname "$(dirname "$CARGO_HOME")")/android-monorepo/$(basename "$CARGO_HOME")"
+          monorepo="${CARGO_HOME:-$HOME/.cargo}/android-monorepo"
           # Keep it bounded: cargo starts again once its target/ passes 6 GiB.
           if [ -d "$monorepo/target" ] && [ "$(du -s --block-size=1G "$monorepo/target" | cut -f1)" -gt 6 ]; then
             echo "Clearing $monorepo/target, which passed 6 GiB"
@@ -102,7 +103,7 @@ jobs:
 
   exit-criterion:
     name: Exit criterion on an emulator
-    runs-on: self-hosted
+    runs-on: ephemeral
     timeout-minutes: 45
     # The emulator (5554) and the test relay (3340) use fixed ports, so with several runners on
     # one host only one of these jobs may run at a time. Other jobs still run in parallel.
@@ -134,7 +135,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-      # The self-hosted runner may not carry an Android SDK the way GitHub's images do.
+      # The runners carry no Android SDK; it is kept in each slot's tool cache.
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3.2.2
         with:
           # The default also asks for `tools`, which the SDK repository no longer carries.
@@ -143,19 +144,20 @@ jobs:
         with:
           toolchain: stable
           targets: x86_64-linux-android
-      # CI builds the emulator's ABI only. The checkout persists per runner slot (beside its
-      # CARGO_HOME), so cargo rebuilds only what changed since that slot's last run.
+      # CI builds the emulator's ABI only. The checkout persists per runner slot (under its
+      # CARGO_HOME, which a container runner keeps between jobs), so cargo rebuilds only what
+      # changed since that slot's last run.
       - name: The pinned monorepo release, cargo-ndk and the NDK
         run: |
           if ! cargo ndk --version 2>/dev/null | grep -q " $CARGO_NDK_VERSION"; then
             cargo install cargo-ndk --locked --version "$CARGO_NDK_VERSION" --force
           fi
           # Steps run with pipefail, and yes ends on SIGPIPE once sdkmanager stops reading. The
-          # runner slots share one SDK, so one sdkmanager runs at a time.
+          # lock keeps one sdkmanager at a time on runners whose slots share an SDK.
           (yes || true) | flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager --licenses > /dev/null
           flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
-          monorepo="$(dirname "$(dirname "$CARGO_HOME")")/android-monorepo/$(basename "$CARGO_HOME")"
+          monorepo="${CARGO_HOME:-$HOME/.cargo}/android-monorepo"
           # Keep it bounded: cargo starts again once its target/ passes 6 GiB.
           if [ -d "$monorepo/target" ] && [ "$(du -s --block-size=1G "$monorepo/target" | cut -f1)" -gt 6 ]; then
             echo "Clearing $monorepo/target, which passed 6 GiB"
@@ -171,19 +173,22 @@ jobs:
             "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v$version#tidefell")
           echo "$out/bin" >> "$GITHUB_PATH"
           "$out/bin/tidefelld" --version
-      # Kept per runner slot, beside its CARGO_HOME, and built once per version.
+      # Kept per runner slot, under its CARGO_HOME, and built once per version.
       - name: iroh-relay
         run: |
-          root="$(dirname "$(dirname "$CARGO_HOME")")/iroh-relay/$IROH_RELAY_VERSION/$(basename "$CARGO_HOME")"
+          root="${CARGO_HOME:-$HOME/.cargo}/iroh-relay/$IROH_RELAY_VERSION"
           if [ ! -x "$root/bin/iroh-relay" ]; then
             cargo install iroh-relay --version "$IROH_RELAY_VERSION" --locked --features server --root "$root"
           fi
           echo "$root/bin" >> "$GITHUB_PATH"
           "$root/bin/iroh-relay" --version
-      # The host's loopback has 10.0.2.2, the address the emulator reaches it at, set up on the
-      # runner host: the runner's user has no sudo.
+      # The loopback needs 10.0.2.2, the address the emulator reaches the host at. A container
+      # runner's job is root with NET_ADMIN and adds it; a host runner has it set up already.
       - name: Loopback alias
-        run: ip addr show lo | grep -q "10.0.2.2/32"
+        run: |
+          if ! ip addr show lo | grep -q "10.0.2.2/32"; then
+            ip addr add 10.0.2.2/32 dev lo
+          fi
       - name: Run on an emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
@@ -202,7 +207,7 @@ jobs:
   # The design tokens (design/README.md): the committed dist/ must be what the tokens build.
   design:
     name: Design tokens
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -227,7 +232,7 @@ jobs:
   # Shell scripts and spelling (ADR 0031). The repository has no Nix files.
   shell-and-spelling:
     name: Shell and spelling
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -248,7 +253,7 @@ jobs:
   # severity or higher fail, so actions stay pinned by commit.
   workflows:
     name: Workflows
-    runs-on: self-hosted
+    runs-on: ephemeral
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -268,6 +273,6 @@ jobs:
           curl -sfL -o "$RUNNER_TEMP/$name" "https://github.com/rhysd/actionlint/releases/download/v$version/$name"
           echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $RUNNER_TEMP/$name" | sha256sum --check --quiet
           tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP" actionlint
-          "$RUNNER_TEMP/actionlint" .forgejo/workflows/*.yml
+          "$RUNNER_TEMP/actionlint" -config-file .forgejo/actionlint.yaml .forgejo/workflows/*.yml
       - name: zizmor
         run: zizmor --offline --min-severity medium .forgejo/workflows/*.yml
