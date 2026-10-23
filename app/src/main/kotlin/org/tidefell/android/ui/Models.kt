@@ -13,6 +13,7 @@ import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
 import org.tidefell.ffi.Recycled
+import org.tidefell.ffi.StorageDropResult
 import org.tidefell.ffi.Transfer
 import org.tidefell.ffi.Version
 import java.io.File
@@ -80,6 +81,15 @@ interface HomeModel {
     suspend fun openVersion(folder: String, path: String, version: Version): String
     fun dismissCrashes()
     fun restart()
+
+    /** The open folder's storage priorities and what its storage peers keep, on its Storage page (ADR 0023). */
+    val storage: StateFlow<FolderStorage?>
+
+    /** Ranks the file or directory at [path] for the folder's storage peers, or puts it back to the default for null. */
+    fun setPriority(folder: String, path: String, directory: Boolean, priority: Int?)
+
+    /** Asks storage peer [device] to forget what it holds of files ranked below [below]; only ever as the user asks. */
+    suspend fun storageDrop(folder: String, device: String, below: Int, force: Boolean): StorageDropResult
 }
 
 /** The settings page. */

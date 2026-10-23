@@ -5,6 +5,7 @@ import org.tidefell.android.Peer
 import org.tidefell.android.folders.SyncChoice
 import org.tidefell.android.ui.AddFolderModel
 import org.tidefell.android.ui.AddFolderViewModel
+import org.tidefell.android.ui.FolderStorage
 import org.tidefell.android.ui.HomeModel
 import org.tidefell.android.ui.Page
 import org.tidefell.android.ui.PairingModel
@@ -12,6 +13,7 @@ import org.tidefell.android.ui.PairingViewModel
 import org.tidefell.android.ui.SettingsModel
 import org.tidefell.android.ui.SettingsViewModel
 import org.tidefell.android.ui.StatusModel
+import org.tidefell.android.ui.storageRows
 import org.tidefell.ffi.Activity
 import org.tidefell.ffi.ChangeKind
 import org.tidefell.ffi.Check
@@ -21,15 +23,22 @@ import org.tidefell.ffi.DeviceStatus
 import org.tidefell.ffi.DiagnosticsBundle
 import org.tidefell.ffi.DiagnosticsEntry
 import org.tidefell.ffi.Folder
+import org.tidefell.ffi.FolderEncryption
 import org.tidefell.ffi.FolderOffer
 import org.tidefell.ffi.FolderState
 import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.Operation
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.PeerState
+import org.tidefell.ffi.Priorities
+import org.tidefell.ffi.PriorityEntry
+import org.tidefell.ffi.PriorityRule
 import org.tidefell.ffi.ProblemKind
 import org.tidefell.ffi.Rebuild
 import org.tidefell.ffi.Recycled
+import org.tidefell.ffi.StorageDropResult
+import org.tidefell.ffi.StorageLevel
+import org.tidefell.ffi.StoragePeerReport
 import org.tidefell.ffi.Transfer
 import org.tidefell.ffi.Version
 import org.tidefell.ffi.VersionKind
@@ -75,13 +84,14 @@ object Sample {
         unavailable: String? = null,
         heldDeletes: ULong = 0u,
         lowSpace: String? = null,
+        encryption: FolderEncryption? = null,
     ) = Folder(
         id = id,
         path = path,
         partialBudget = partialBudget,
         members = listOf(PHONE),
         retentionDays = 30u,
-        encryption = null,
+        encryption = encryption,
         sync = sync,
         recycledFiles = recycledFiles,
         recycledBytes = recycledFiles * 2_400_000u,
@@ -131,6 +141,48 @@ object Sample {
     )
 
     val folders get() = listOf(camera, documents, shared())
+
+    /** An encrypted folder the NAS keeps without reading it (ADR 0023). */
+    val vault get() = folder(
+        id = "f".repeat(64),
+        path = File(Peer.foldersDir, "Vault").path,
+        sync = SyncChoice.FILES_ON_DEMAND.options,
+        partialBudget = 2_147_483_648u,
+        encryption = FolderEncryption(storagePeers = listOf(NAS, LAPTOP), keyGeneration = 1u),
+    )
+
+    /** The vault's priorities: photos first, disc images never. */
+    val priorities get() = Priorities(
+        rules = listOf(PriorityRule(200u, "/Photos/"), PriorityRule(0u, "*.iso")),
+        entries = listOf(
+            PriorityEntry("Photos", true, 200u, 0u),
+            PriorityEntry("Photos/2019", true, 200u, 0u),
+            PriorityEntry("Photos/2019/beach.jpg", false, 200u, 0u),
+            PriorityEntry("Photos/cat.jpg", false, 200u, 0u),
+            PriorityEntry("backup.iso", false, 0u, 1u),
+            PriorityEntry("notes.md", false, 128u, null),
+        ),
+    )
+
+    val storage get() = FolderStorage(
+        storageRows(priorities),
+        listOf(
+            StoragePeerReport(
+                device = NAS,
+                connected = true,
+                quotaBytes = 8_000_000_000u,
+                heldBytes = 6_200_000_000u,
+                roomBytes = 0u,
+                levels = listOf(
+                    StorageLevel(200u, 2u, 4_100_000_000u, 4_100_000_000u),
+                    StorageLevel(128u, 1u, 3_000_000_000u, 2_100_000_000u),
+                    StorageLevel(0u, 1u, 4_700_000_000u, 0u),
+                ),
+                error = null,
+            ),
+            StoragePeerReport(LAPTOP, false, null, null, null, emptyList(), null),
+        ),
+    )
 
     @Suppress("LongParameterList") // Sample data: every argument has a default.
     fun file(
@@ -304,6 +356,10 @@ class FakeHome(page: Page = Page.Folders) : HomeModel {
     override suspend fun openVersion(folder: String, path: String, version: Version): String = ""
     override fun dismissCrashes() = Unit
     override fun restart() = Unit
+    override val storage = MutableStateFlow<FolderStorage?>(Sample.storage)
+    override fun setPriority(folder: String, path: String, directory: Boolean, priority: Int?) = Unit
+    override suspend fun storageDrop(folder: String, device: String, below: Int, force: Boolean) =
+        StorageDropResult(done = false, droppedChunks = 0u, droppedBytes = 0u, atRisk = listOf("Photos/2019/beach.jpg"))
 }
 
 class FakeSettings : SettingsModel {

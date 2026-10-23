@@ -463,6 +463,45 @@ class ScreenshotTest {
         capture("51-conflict-decided")
     }
 
+    // What an encrypted folder's storage peers keep (ADR 0023).
+
+    private fun vault(page: Page) = FakeHome(page).apply { folders.value = Sample.folders + Sample.vault }
+
+    @Test
+    fun storage() {
+        tall()
+        home(vault(Page.Storage(Sample.vault.id)))
+        capture("45-storage")
+    }
+
+    @Test
+    fun storagePriority() {
+        home(vault(Page.Storage(Sample.vault.id)))
+        click("Photos")
+        capture("46-storage-priority")
+    }
+
+    @Test
+    fun storagePriorityFromAFile() {
+        home(vault(Page.Storage(Sample.vault.id, "Photos/cat.jpg")))
+        capture("46-storage-priority-file")
+    }
+
+    @Test
+    fun storageDrop() {
+        home(vault(Page.Storage(Sample.vault.id)))
+        click("Drop below…")
+        capture("47-storage-drop")
+    }
+
+    @Test
+    fun storageDropAtRisk() {
+        home(vault(Page.Storage(Sample.vault.id)))
+        click("Drop below…")
+        click("Drop")
+        capture("48-storage-drop-at-risk")
+    }
+
     // Settings.
 
     @Test

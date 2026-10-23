@@ -25,6 +25,7 @@ import org.tidefell.ffi.HeldWithdrawals
 import org.tidefell.ffi.Node
 import org.tidefell.ffi.PathProblem
 import org.tidefell.ffi.Recycled
+import org.tidefell.ffi.StorageDropResult
 import org.tidefell.ffi.Version
 
 /** Where the app is. The back button goes to the page's parent. */
@@ -68,6 +69,14 @@ sealed interface Page {
 
     /** A file changed on two devices apart, waiting for a decision (ADR 0029). */
     data class Conflict(val folder: String, val path: String) : Page {
+        override val parent: Page = Files(folder)
+    }
+
+    /**
+     * What an encrypted folder's storage peers keep, and its files' priorities (ADR 0023);
+     * [focus] opens that path's priority at once.
+     */
+    data class Storage(val folder: String, val focus: String? = null) : Page {
         override val parent: Page = Files(folder)
     }
 }
@@ -167,6 +176,53 @@ class HomeViewModel : ViewModel(), HomeModel {
 
     override fun go(page: Page) {
         current.value = page
+        if (page is Page.Storage) {
+            storageState.value = null
+            loadStorage(page.folder)
+        }
+    }
+
+    private val storageState = MutableStateFlow<FolderStorage?>(null)
+
+    /**
+     * Loaded when the page opens and after each change made there, not on every node event:
+     * each load asks the storage peers over the network.
+     */
+    override val storage: StateFlow<FolderStorage?> = storageState
+
+    private fun loadStorage(folder: String) {
+        viewModelScope.launch {
+            runCatching {
+                val node = Peer.start()
+                FolderStorage(storageRows(node.priorities(folder)), node.storageReport(folder))
+            }.onSuccess { if ((current.value as? Page.Storage)?.folder == folder) storageState.value = it }
+                .onFailure {
+                    AppLog.w(TAG, "loading storage failed", it)
+                    messages.value = it.message ?: it.toString()
+                }
+        }
+    }
+
+    override fun setPriority(folder: String, path: String, directory: Boolean, priority: Int?) {
+        viewModelScope.launch {
+            AppLog.i(TAG, "setPriority")
+            runCatching { Peer.start().setPriority(folder, patternFor(path, directory), priority?.toUByte()) }
+                .onSuccess {
+                    messages.value = if (priority == null) "$path is back to the default" else "$path ranked $priority"
+                }
+                .onFailure {
+                    AppLog.w(TAG, "setPriority failed", it)
+                    messages.value = it.message ?: it.toString()
+                }
+            loadStorage(folder)
+        }
+    }
+
+    override suspend fun storageDrop(folder: String, device: String, below: Int, force: Boolean): StorageDropResult {
+        AppLog.i(TAG, "storageDrop")
+        val result = Peer.start().storageDrop(folder, device, below.toUByte(), force)
+        if (result.done) loadStorage(folder)
+        return result
     }
 
     /** Goes to the current page's parent; false on the top page. */
@@ -324,6 +380,7 @@ class HomeViewModel : ViewModel(), HomeModel {
         is Page.History -> page.folder
         is Page.Conflict -> page.folder
         is Page.Activity -> page.folder
+        is Page.Storage -> page.folder
         else -> null
     }
 

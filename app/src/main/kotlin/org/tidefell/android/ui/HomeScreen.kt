@@ -96,6 +96,7 @@ fun HomeScreen(
         is Page.History -> p.folder
         is Page.Conflict -> p.folder
         is Page.Activity -> p.folder
+        is Page.Storage -> p.folder
         else -> null
     }
     val folder = folders.firstOrNull { it.id == folderId }
@@ -110,6 +111,7 @@ fun HomeScreen(
         is Page.RecycleBin -> "Recycle bin"
         is Page.History -> "Earlier versions"
         is Page.Conflict -> "Choose a version"
+        is Page.Storage -> "Storage peers"
     }
     Scaffold(
         topBar = {
@@ -192,6 +194,7 @@ fun HomeScreen(
                 page is Page.RecycleBin && folder != null -> RecycleBin(model, folder)
                 page is Page.History && folder != null -> HistoryPage(model, folder, (page as Page.History).path)
                 page is Page.Conflict && folder != null -> ConflictPage(model, folder, (page as Page.Conflict).path) { model.back() }
+                page is Page.Storage && folder != null -> StoragePage(model, folder, (page as Page.Storage).focus)
                 else -> FolderList(model, folders) { model.go(Page.Files(it.id)) }
             }
         }
@@ -295,6 +298,9 @@ private fun FolderHeader(model: HomeModel, folder: Folder, onCleanUp: () -> Unit
     FlowRow(Modifier.padding(horizontal = TidefellSpace.Lg), horizontalArrangement = Arrangement.spacedBy(TidefellSpace.Sm)) {
         Chip("Activity", onClick = { model.go(Page.Activity(folder.id)) }, icon = TidefellIcons.History)
         Chip("Recycle bin", onClick = { model.go(Page.RecycleBin(folder.id)) }, icon = TidefellIcons.Delete)
+        if (ranksStorage(folder)) {
+            Chip("Storage peers", onClick = { model.go(Page.Storage(folder.id)) }, icon = TidefellIcons.Cloud)
+        }
         if (PhoneFolders.choice(folder).let { it == SyncChoice.BACKUP_ONLY || it == SyncChoice.TWO_WAY }) {
             Chip("Clean up", onClick = onCleanUp, icon = TidefellIcons.Phone)
         }
@@ -415,6 +421,13 @@ private fun FileActions(model: HomeModel, folder: Folder, file: File, onDismiss:
                     model.go(Page.History(folder.id, file.path))
                     onDismiss()
                 })
+                // How the folder's storage peers rank it (ADR 0023).
+                if (ranksStorage(folder)) {
+                    ActionRow(TidefellIcons.Cloud, "Storage priority", onClick = {
+                        model.go(Page.Storage(folder.id, file.path))
+                        onDismiss()
+                    })
+                }
                 ActionRow(
                     TidefellIcons.Delete,
                     "Delete from all devices",
