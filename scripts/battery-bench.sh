@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The battery benchmark (ADR 0039): measures what the app costs on a running emulator or phone
-# against the pinned release's tidefelld on this host, and prints a table for the release notes.
+# against the pinned release's shoald on this host, and prints a table for the release notes.
 #
 # Scenarios, each measured on its own from a reset of the phone's battery statistics:
 #   idle_service  the peer running in its foreground service, nothing to sync, for BENCH_MINUTES
@@ -17,10 +17,10 @@
 # the battery's energy figures come from a placeholder power profile and are left out: only a
 # phone's are worth reporting.
 #
-# Needs what scripts/ci-exit-criterion.sh needs: tidefelld and tidefell on PATH, iroh-relay on
+# Needs what scripts/ci-exit-criterion.sh needs: shoald and shoal on PATH, iroh-relay on
 # PATH, adb connected to one device, and sudo to add 10.0.2.2 to the loopback interface. Run it
 # only while CI is not using the emulator. Arguments are passed on to Gradle, such as
-# -PtidefellFfiLocalPath=<monorepo>.
+# -PshoalFfiLocalPath=<monorepo>.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -28,7 +28,7 @@ minutes=${BENCH_MINUTES:-10}
 # Which scenarios to run, for looking into one: idle_service, receive, backup.
 scenarios=" ${BENCH_SCENARIOS:-idle_service receive backup} "
 mib=${BENCH_MIB:-1024}
-package=org.tidefell.android
+package=org.shoalsync.android
 work=$(mktemp -d)
 relay_url="http://10.0.2.2:3340"
 pids=()
@@ -56,8 +56,8 @@ for _ in $(seq 1 30); do
 done
 
 # The host: a full replica of the two folders the phone joins.
-tidefelld init --data-dir "$work/host" --name host > /dev/null
-user=$(tidefelld id --data-dir "$work/host" | awk '$1 == "user:" { print $2 }')
+shoald init --data-dir "$work/host" --name host > /dev/null
+user=$(shoald id --data-dir "$work/host" | awk '$1 == "user:" { print $2 }')
 mkdir -p "$work/In" "$work/Camera"
 {
   printf 'data_dir = "%s"\n\n[network]\n' "$work/host"
@@ -65,12 +65,12 @@ mkdir -p "$work/In" "$work/Camera"
   printf 'address_lookup = false\nlocal_discovery = false\nbind = "0.0.0.0:7777"\n'
   for name in In Camera; do
     printf '\n[[folders]]\nid = "%s"\npath = "%s"\nmembers = ["%s"]\n' \
-      "$(tidefelld new-folder-id)" "$work/$name" "$user"
+      "$(shoald new-folder-id)" "$work/$name" "$user"
     printf 'retention_days = 30\nscan_interval_secs = 5\n'
   done
-} > "$work/tidefelld.toml"
-# BENCH_DAEMON_LOG sets the host's log filter, such as "info,tidefell_engine=debug".
-RUST_LOG="${BENCH_DAEMON_LOG:-info}" tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
+} > "$work/shoald.toml"
+# BENCH_DAEMON_LOG sets the host's log filter, such as "info,shoal_engine=debug".
+RUST_LOG="${BENCH_DAEMON_LOG:-info}" shoald run --config "$work/shoald.toml" > "$work/daemon.log" 2>&1 &
 pids+=($!)
 for _ in $(seq 1 30); do
   [ -S "$work/host/control.sock" ] && break
@@ -82,14 +82,14 @@ adb logcat -c
   until code=$(adb logcat -d -s BatteryBench:I | grep -o 'TFP1-[A-Z0-9]*' | tail -1) && [ -n "$code" ]; do
     sleep 1
   done
-  tidefell --data-dir "$work/host" pair --yes --name "Benchmark" "$code"
+  shoal --data-dir "$work/host" pair --yes --name "Benchmark" "$code"
 ) > "$work/approver.log" 2>&1 &
 pids+=($!)
 
 # Pair and join, leaving the app installed for the measurements.
 ./gradlew --no-daemon -q :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.BatterySetup \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url" \
+  -Pandroid.testInstrumentationRunnerArguments.class=org.shoalsync.android.BatterySetup \
+  -Pandroid.testInstrumentationRunnerArguments.shoalRelay="$relay_url" \
   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true "$@"
 
 uid=$(adb shell pm list packages -U "$package" | tr -d '\r' | awk -v p="package:$package" '$1 == p { sub("uid:", "", $2); print $2 }')
@@ -188,7 +188,7 @@ wait_for_bytes() {
     sleep 1
   done
   echo "timed out waiting for $want bytes in $dir; the app's warnings:" >&2
-  grep -iE "tidefell.*(warn|error)" "$work/logcat.txt" | tail -40 >&2 || true
+  grep -iE "shoal.*(warn|error)" "$work/logcat.txt" | tail -40 >&2 || true
   echo "--- daemon log ---" >&2
   tail -40 "$work/daemon.log" >&2
   echo "--- device idle state: $(adb shell dumpsys deviceidle get deep | tr -d '\r') ---" >&2
@@ -222,20 +222,20 @@ fi
 if [[ $scenarios == *" receive "* ]]; then
   begin
   for i in $(seq 1 "$files"); do head -c "$size" /dev/urandom > "$work/In/file-$i.bin"; done
-  wait_for_bytes /sdcard/TidefellBench/In phone $(( size * files ))
+  wait_for_bytes /sdcard/ShoalBench/In phone $(( size * files ))
   finish receive gib
 fi
 
 if [[ $scenarios == *" backup "* ]]; then
   # 3. Backing up: photos added to the phone folder while the peer runs, which scans it on its own.
   # They are copied to the phone first and moved in at once, so copying them is not measured.
-  adb shell mkdir -p /sdcard/TidefellBench/staging /sdcard/DCIM/TidefellBench
+  adb shell mkdir -p /sdcard/ShoalBench/staging /sdcard/DCIM/ShoalBench
   for i in $(seq 1 "$files"); do
     head -c "$size" /dev/urandom > "$work/photo.jpg"
-    adb push -q "$work/photo.jpg" "/sdcard/TidefellBench/staging/IMG_$i.jpg" > /dev/null
+    adb push -q "$work/photo.jpg" "/sdcard/ShoalBench/staging/IMG_$i.jpg" > /dev/null
   done
   begin
-  adb shell 'mv /sdcard/TidefellBench/staging/* /sdcard/DCIM/TidefellBench/'
+  adb shell 'mv /sdcard/ShoalBench/staging/* /sdcard/DCIM/ShoalBench/'
   # A mark in the phone's log, to time what follows by the phone's own clock.
   adb shell log -t BatteryBench "photos moved in"
   wait_for_bytes "$work/Camera" host $(( size * files ))

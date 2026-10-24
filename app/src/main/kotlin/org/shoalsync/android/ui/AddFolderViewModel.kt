@@ -1,0 +1,121 @@
+package org.shoalsync.android.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import org.shoalsync.android.AppLog
+import org.shoalsync.android.folders.PhoneFolders
+import org.shoalsync.android.folders.PhoneStorage
+import org.shoalsync.android.folders.SyncChoice
+import org.shoalsync.ffi.Folder
+import org.shoalsync.ffi.FolderOffer
+import java.io.File
+
+/**
+ * Adding a folder (ADR 0025): a new one at a folder on the phone, or [offer], a folder shared
+ * from another device, either on the phone or in app storage with files on demand.
+ */
+class AddFolderViewModel(application: Application) : AndroidViewModel(application), AddFolderModel {
+    sealed interface Step {
+        /** Where the folder lives: only asked when joining, where app storage is an option. */
+        data object Place : Step
+
+        /** All files access is needed before a phone folder can be picked. */
+        data object Access : Step
+
+        /** Browsing: [dir] is null at the starting places. */
+        data class Pick(val dir: File?, val places: List<PhoneStorage.Place>, val subfolders: List<File>) : Step
+
+        data class Choose(val dir: File) : Step
+
+        data object Working : Step
+
+        data class Done(val folder: Folder) : Step
+
+        data class Failed(val message: String) : Step
+    }
+
+    private val current = MutableStateFlow<Step>(Step.Access)
+    private var offer: FolderOffer? = null
+
+    override val step: StateFlow<Step> = current
+
+    private var started = false
+
+    /**
+     * Begins adding a new folder, or joining [offer]. Does nothing if already begun, so a
+     * rotation keeps the step, unless [again].
+     */
+    override fun start(offer: FolderOffer?, again: Boolean) {
+        if (started && !again) return
+        started = true
+        this.offer = offer
+        current.value = if (offer != null) Step.Place else pickOrAccess()
+    }
+
+    /** Forgets this visit, so the next one starts at the beginning. */
+    override fun reset() {
+        started = false
+    }
+
+    /** Joins the offered folder in app storage, with files on demand. */
+    override fun useAppStorage() = finish { PhoneFolders.join(offer!!, null, SyncChoice.FILES_ON_DEMAND) }
+
+    /** Continues to picking a folder on the phone. */
+    override fun usePhoneFolder() {
+        current.value = pickOrAccess()
+    }
+
+    /** Called when the user comes back from the system's access screen. */
+    override fun accessChanged() {
+        if (current.value == Step.Access && PhoneStorage.hasAccess()) current.value = pick(null)
+    }
+
+    override fun open(dir: File?) {
+        current.value = pick(dir)
+    }
+
+    /** Goes up one folder, or back to the starting places; false if already there. */
+    override fun up(): Boolean {
+        val step = current.value as? Step.Pick ?: return false
+        val dir = step.dir ?: return false
+        val place = step.places.firstOrNull { it.dir.canonicalFile == dir.canonicalFile }
+        current.value = pick(if (place != null) null else dir.parentFile)
+        return true
+    }
+
+    override fun choose(dir: File) {
+        current.value = Step.Choose(dir)
+    }
+
+    override fun add(dir: File, choice: SyncChoice) = finish {
+        val offer = offer
+        if (offer == null) PhoneFolders.create(dir, choice) else PhoneFolders.join(offer, dir, choice)
+    }
+
+    private fun finish(add: suspend () -> Folder) {
+        current.value = Step.Working
+        viewModelScope.launch {
+            current.value = runCatching { add() }
+                .fold({ Step.Done(it) }, {
+                    AppLog.w(TAG, "adding a folder failed", it)
+                    Step.Failed(it.message ?: it.toString())
+                })
+        }
+    }
+
+    private fun pickOrAccess(): Step = if (PhoneStorage.hasAccess()) pick(null) else Step.Access
+
+    private fun pick(dir: File?): Step.Pick {
+        val context = getApplication<Application>()
+        val places = PhoneStorage.places(context)
+        return Step.Pick(dir, places, dir?.let(PhoneStorage::subfolders).orEmpty())
+    }
+
+    private companion object {
+        const val TAG = "AddFolder"
+    }
+}

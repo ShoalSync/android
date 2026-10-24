@@ -4,14 +4,14 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-val ffiVersion: String = libs.versions.tidefell.get()
+val ffiVersion: String = libs.versions.shoal.get()
 
 android {
-    namespace = "org.tidefell.android"
+    namespace = "org.shoalsync.android"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "org.tidefell.android"
+        applicationId = "org.shoalsync.android"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
@@ -52,14 +52,14 @@ android {
     }
 
     packaging {
-        // The emulator test ABI is enough while developing: -Ptidefell.abis=x86_64 on the AAR.
+        // The emulator test ABI is enough while developing: -Pshoal.abis=x86_64 on the AAR.
         jniLibs.useLegacyPackaging = false
     }
 }
 
 dependencies {
     // Built from the monorepo checkout that settings.gradle.kts includes.
-    implementation(libs.tidefell.ffi)
+    implementation(libs.shoal.ffi)
     // The AAR has no POM; these are its own dependencies (bindings/android/README.md).
     implementation(libs.jna) { artifact { type = "aar" } }
     implementation(libs.coroutines.android)

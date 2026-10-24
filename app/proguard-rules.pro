@@ -1,1 +1,1 @@
-# The tidefell-ffi AAR ships consumer rules for JNA and org.tidefell.ffi.
+# The shoal-ffi AAR ships consumer rules for JNA and org.shoalsync.ffi.

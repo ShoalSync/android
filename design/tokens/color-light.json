@@ -17,7 +17,7 @@
       "bright": { "$value": "#fbfcfd" }
     },
     "accent": {
-      "base": { "$value": "#0d6e8a", "$description": "Tidefell's teal: the main action, links, selection." },
+      "base": { "$value": "#0d6e8a", "$description": "Shoal's teal: the main action, links, selection." },
       "on": { "$value": "#ffffff", "$description": "Text and icons on accent." },
       "soft": { "$value": "#c4e8f3", "$description": "A tinted area, such as a chosen option." },
       "on-soft": { "$value": "#00222d" },

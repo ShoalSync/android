@@ -1,5 +1,5 @@
 {
-  "$description": "The app's icons: each name, as the platforms spell it, and the Lucide icon (lucide.dev) drawn for it. An SVG in icons/ is one of Tidefell's own, such as the wave.",
+  "$description": "The app's icons: each name, as the platforms spell it, and the Lucide icon (lucide.dev) drawn for it. An SVG in icons/ is one of Shoal's own, such as the wave.",
   "lucide": {
     "back": "arrow-left",
     "add": "plus",

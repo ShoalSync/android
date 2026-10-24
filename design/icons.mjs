@@ -1,4 +1,4 @@
-// Reads the icons in icons.json (Lucide's, by name) and icons/ (Tidefell's own), as path data each
+// Reads the icons in icons.json (Lucide's, by name) and icons/ (Shoal's own), as path data each
 // platform can draw. Lucide draws 24 by 24 with 2px round strokes; an icon of our own says its
 // viewBox and is filled.
 import { readFile, readdir } from 'node:fs/promises';

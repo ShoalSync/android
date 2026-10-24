@@ -1,6 +1,6 @@
-# Tidefell design tokens
+# Shoal design tokens
 
-Tidefell's colours, type, spacing, sizes, corner radii and icons, in one place for every app
+Shoal's colours, type, spacing, sizes, corner radii and icons, in one place for every app
 and the website.
 A token is named for what it is for (`accent`, `fg-muted`, `danger-soft`), never for its hue,
 and each platform gets the same names in its own spelling.
@@ -21,7 +21,7 @@ move to a repository of its own (see [Moving out](#moving-out)).
 | `tokens/radius.json` | Corner radii |
 | `fonts/` | Inter, the variable font, with its licence ([fonts/README.md](fonts/README.md)) |
 | `icons.json` | The app's icons: each name and the [Lucide](https://lucide.dev) icon drawn for it |
-| `icons/` | Icons of Tidefell's own, such as the wave: filled, drawn with `<path>` only |
+| `icons/` | Icons of Shoal's own, such as the wave: filled, drawn with `<path>` only |
 | `icons.mjs` | Reads the icons as path data, for `build.mjs` |
 | `build.mjs` | Reads the tokens with [Style Dictionary](https://styledictionary.com) and writes `dist/` |
 | `dist/` | The built files, committed so the apps and the site build without Node |
@@ -40,32 +40,32 @@ npm run build
 ```
 
 and commit the token and `dist/` together. To add an icon, find it on [lucide.dev](https://lucide.dev),
-add its name to `icons.json` and build; `TidefellIcons` gains it. Lucide is pinned in
+add its name to `icons.json` and build; `ShoalIcons` gains it. Lucide is pinned in
 `package.json`, so an icon only changes when the pin does. CI builds `dist/` again and fails if it differs.
 
 ## Names on each platform
 
 A group's `base` is the plain name, and `on` comes first:
 
-| Token | Kotlin (`TidefellColors`) | CSS |
+| Token | Kotlin (`ShoalColors`) | CSS |
 | --- | --- | --- |
 | `color.accent.base` | `accent` | `--tf-color-accent` |
 | `color.accent.on` | `onAccent` | `--tf-color-on-accent` |
 | `color.accent.on-soft` | `onAccentSoft` | `--tf-color-on-accent-soft` |
 | `color.surface.low` | `surfaceLow` | `--tf-color-surface-low` |
-| `radius.lg` | `TidefellRadius.Lg` | `--tf-radius-lg` |
-| `size.content-max` | `TidefellSize.ContentMax` | `--tf-size-content-max` |
-| `space.md` | `TidefellSpace.Md` | `--tf-space-md` |
-| `text.body-small` | `TidefellText.BodySmall` | `--tf-text-body-small` (the `font` shorthand) |
+| `radius.lg` | `ShoalRadius.Lg` | `--tf-radius-lg` |
+| `size.content-max` | `ShoalSize.ContentMax` | `--tf-size-content-max` |
+| `space.md` | `ShoalSpace.Md` | `--tf-space-md` |
+| `text.body-small` | `ShoalText.BodySmall` | `--tf-text-body-small` (the `font` shorthand) |
 
 ## Consumers
 
 - **Android** (`../app`): Gradle adds `dist/android/kotlin` and `dist/android/res` to the app's
   sources. `ui/Theme.kt` gives the colours, text styles and radii to Material's roles, and
-  sets Inter's optical size from each style's size; screens use `TidefellSpace` and
-  `TidefellSize` directly, and `TidefellIcons` (`dist/android/kotlin/.../Icons.kt`) for
+  sets Inter's optical size from each style's size; screens use `ShoalSpace` and
+  `ShoalSize` directly, and `ShoalIcons` (`dist/android/kotlin/.../Icons.kt`) for
   icons. The resources colour the window and the launcher icon, and carry the font.
-- **Website** (`tidefell/site`): `static/tokens.css` is a copy of `dist/css/tokens.css`. After
+- **Website** (`shoal/site`): `static/tokens.css` is a copy of `dist/css/tokens.css`. After
   changing a colour, copy it there in a pull request of its own.
 - **Apple apps** (planned): a Swift output joins `dist/` when the iOS app starts, and
   `dist/icons/*.svg` go into its asset catalog. Lucide's licence (ISC) is in

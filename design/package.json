@@ -1,11 +1,11 @@
 {
-  "name": "@tidefell/design",
+  "name": "@shoal/design",
   "version": "0.0.0",
-  "description": "Tidefell design tokens, and the files built from them for each platform",
+  "description": "Shoal design tokens, and the files built from them for each platform",
   "scripts": {
     "build": "node build.mjs"
   },
-  "license": "AGPL-3.0-only",
+  "license": "MIT OR Apache-2.0",
   "devDependencies": {
     "lucide-static": "1.48.0",
     "style-dictionary": "5.5.5"

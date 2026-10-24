@@ -7,7 +7,7 @@
         errorLine1="            .launch(Manifest.permission.POST_NOTIFICATIONS)"
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/ui/MainActivity.kt"
+            file="src/main/kotlin/org/shoalsync/android/ui/MainActivity.kt"
             line="26"
             column="21"/>
     </issue>
@@ -29,7 +29,7 @@
         errorLine1="/** This device&apos;s peer: one [Node] per process, started once the device is paired. */"
         errorLine2="^">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="23"
             column="1"/>
     </issue>
@@ -40,7 +40,7 @@
         errorLine1="    private lateinit var app: Context"
         errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="25"
             column="5"/>
     </issue>
@@ -62,7 +62,7 @@
         errorLine1="        set(value) = prefs.edit().putString(&quot;relay&quot;, value.trim()).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="104"
             column="22"/>
     </issue>
@@ -73,7 +73,7 @@
         errorLine1="        set(value) = prefs.edit().putBoolean(&quot;address_lookup&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="109"
             column="22"/>
     </issue>
@@ -84,7 +84,7 @@
         errorLine1="        set(value) = prefs.edit().putBoolean(&quot;local_discovery&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="114"
             column="22"/>
     </issue>
@@ -95,7 +95,7 @@
         errorLine1="        set(value) = prefs.edit().putLong(&quot;budget_bytes&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="119"
             column="22"/>
     </issue>
@@ -106,7 +106,7 @@
         errorLine1="        set(value) = prefs.edit().putBoolean(&quot;sync_unmetered_only&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="124"
             column="22"/>
     </issue>
@@ -117,7 +117,7 @@
         errorLine1="        set(value) = prefs.edit().putBoolean(&quot;sync_charging_only&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="129"
             column="22"/>
     </issue>
@@ -128,7 +128,7 @@
         errorLine1="        prefs.edit().putStringSet(&quot;kept.$folder&quot;, kept(folder) + entry).apply()"
         errorLine2="        ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="145"
             column="9"/>
     </issue>
@@ -139,7 +139,7 @@
         errorLine1="        prefs.edit().apply {"
         errorLine2="        ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="149"
             column="9"/>
     </issue>
@@ -150,7 +150,7 @@
         errorLine1="        set(value) = prefs.edit().putLong(&quot;upload_kib&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="157"
             column="22"/>
     </issue>
@@ -161,7 +161,7 @@
         errorLine1="        set(value) = prefs.edit().putLong(&quot;download_kib&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="162"
             column="22"/>
     </issue>
@@ -172,7 +172,7 @@
         errorLine1="        set(value) = prefs.edit().putBoolean(&quot;limit_local&quot;, value).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="167"
             column="22"/>
     </issue>
@@ -183,7 +183,7 @@
         errorLine1="        set(value) = prefs.edit().putString(&quot;report_url&quot;, value.trim()).apply()"
         errorLine2="                     ~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/Peer.kt"
+            file="src/main/kotlin/org/shoalsync/android/Peer.kt"
             line="175"
             column="22"/>
     </issue>
@@ -194,7 +194,7 @@
         errorLine1="        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse(&quot;package:${context.packageName}&quot;))"
         errorLine2="                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/folders/PhoneStorage.kt"
+            file="src/main/kotlin/org/shoalsync/android/folders/PhoneStorage.kt"
             line="24"
             column="72"/>
     </issue>
@@ -205,7 +205,7 @@
         errorLine1="        val view = Intent(Intent.ACTION_VIEW, Uri.parse(url))"
         errorLine2="                                              ~~~~~~~~~~~~~~">
         <location
-            file="src/main/kotlin/org/tidefell/android/ui/VersionScreens.kt"
+            file="src/main/kotlin/org/shoalsync/android/ui/VersionScreens.kt"
             line="192"
             column="47"/>
     </issue>
