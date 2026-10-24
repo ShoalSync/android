@@ -35,4 +35,4 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# The monorepo checkout tidefell-ffi is built from (scripts/monorepo.sh) is under build/.
+# The monorepo checkout shoal-ffi is built from (scripts/monorepo.sh) is under build/.

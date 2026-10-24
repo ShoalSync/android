@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Runs the Phase 4, 5d and 5l exit criteria (ExitCriterionTest) on a running emulator against the
-# pinned release's tidefelld on this host.
+# pinned release's shoald on this host.
 #
-# Needs: tidefelld and tidefell on PATH, iroh-relay on PATH, adb connected to the emulator, and
+# Needs: shoald and shoal on PATH, iroh-relay on PATH, adb connected to the emulator, and
 # the ability to add 10.0.2.2 to the loopback interface (sudo). Arguments are passed on to Gradle,
-# such as -PtidefellFfiLocalPath=<monorepo> to test another monorepo checkout. The emulator reaches the host's
+# such as -PshoalFfiLocalPath=<monorepo> to test another monorepo checkout. The emulator reaches the host's
 # loopback as 10.0.2.2; the alias lets the host use the same relay URL.
 set -euo pipefail
 
@@ -38,14 +38,14 @@ done
 (exec 3<>/dev/tcp/127.0.0.1/3340) 2>/dev/null || { echo "iroh-relay did not start" >&2; exit 1; }
 
 # The laptop: a daemon holding the user key, a full replica of two folders with one file each.
-tidefelld init --data-dir "$work/laptop" --name laptop
-user=$(tidefelld id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
-folder=$(tidefelld new-folder-id)
-camera=$(tidefelld new-folder-id)
+shoald init --data-dir "$work/laptop" --name laptop
+user=$(shoald id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
+folder=$(shoald new-folder-id)
+camera=$(shoald new-folder-id)
 mkdir -p "$work/Photos" "$work/Camera"
 printf 'sand and sea' > "$work/Photos/beach.jpg"
 printf 'made on the laptop' > "$work/Camera/desktop.txt"
-cat > "$work/tidefelld.toml" <<TOML
+cat > "$work/shoald.toml" <<TOML
 data_dir = "$work/laptop"
 
 [network]
@@ -68,13 +68,13 @@ members = ["$user"]
 retention_days = 30
 scan_interval_secs = 1
 TOML
-RUST_LOG=info,tidefell_net=debug tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
+RUST_LOG=info,shoal_net=debug shoald run --config "$work/shoald.toml" > "$work/daemon.log" 2>&1 &
 pids+=($!)
 for _ in $(seq 1 30); do
   [ -S "$work/laptop/control.sock" ] && break
   sleep 1
 done
-[ -S "$work/laptop/control.sock" ] || { echo "tidefelld did not start" >&2; exit 1; }
+[ -S "$work/laptop/control.sock" ] || { echo "shoald did not start" >&2; exit 1; }
 
 # Approve the emulator's pairing code as soon as it appears in logcat.
 adb logcat -c
@@ -82,13 +82,13 @@ adb logcat -c
   until code=$(adb logcat -d -s ExitCriterion:I | grep -o 'TFP1-[A-Z0-9]*' | tail -1) && [ -n "$code" ]; do
     sleep 1
   done
-  tidefell --data-dir "$work/laptop" pair --yes --name "Emulator" "$code"
+  shoal --data-dir "$work/laptop" pair --yes --name "Emulator" "$code"
 ) > "$work/approver.log" 2>&1 &
 pids+=($!)
 
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.ExitCriterionTest \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url" "$@"
+  -Pandroid.testInstrumentationRunnerArguments.class=org.shoalsync.android.ExitCriterionTest \
+  -Pandroid.testInstrumentationRunnerArguments.shoalRelay="$relay_url" "$@"
 
 # The file saved on the emulator and the photo taken there reached the daemon, and the file
 # deleted on the phone is still on the daemon.

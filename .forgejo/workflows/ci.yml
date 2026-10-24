@@ -23,8 +23,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The monorepo is private: tidefell-ffi is built from the pinned release's source, checked
-      # out over SSH with a deploy key that can only read tidefell/tidefell, against Forgejo's
+      # The monorepo is private: shoal-ffi is built from the pinned release's source, checked
+      # out over SSH with a deploy key that can only read shoal/shoal, against Forgejo's
       # pinned host key.
       - name: Key for the monorepo
         env:
@@ -63,8 +63,8 @@ jobs:
           fi
           # Steps run with pipefail, and yes ends on SIGPIPE once sdkmanager stops reading. The
           # lock keeps one sdkmanager at a time on runners whose slots share an SDK.
-          (yes || true) | flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager --licenses > /dev/null
-          flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
+          (yes || true) | flock "$ANDROID_HOME/.shoal-ci.lock" sdkmanager --licenses > /dev/null
+          flock "$ANDROID_HOME/.shoal-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
           monorepo="${CARGO_HOME:-$HOME/.cargo}/android-monorepo"
           # Keep it bounded, within a runner slot's disk budget: cargo starts again once its
@@ -74,7 +74,7 @@ jobs:
             rm -rf "$monorepo/target"
           fi
           scripts/monorepo.sh "$monorepo"
-          echo "GRADLE_FFI=-PtidefellFfiLocalPath=$monorepo -Ptidefell.abis=x86_64" >> "$GITHUB_ENV"
+          echo "GRADLE_FFI=-PshoalFfiLocalPath=$monorepo -Pshoal.abis=x86_64" >> "$GITHUB_ENV"
       - name: Build
         # Unit tests, with every screen compared with its screenshot in app/src/test/screenshots.
         # Android Lint fails on any finding not in app/lint-baseline.xml (ADR 0031).
@@ -115,8 +115,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      # The monorepo is private: tidefell-ffi is built from the pinned release's source, checked
-      # out over SSH with a deploy key that can only read tidefell/tidefell, against Forgejo's
+      # The monorepo is private: shoal-ffi is built from the pinned release's source, checked
+      # out over SSH with a deploy key that can only read shoal/shoal, against Forgejo's
       # pinned host key.
       - name: Key for the monorepo
         env:
@@ -155,8 +155,8 @@ jobs:
           fi
           # Steps run with pipefail, and yes ends on SIGPIPE once sdkmanager stops reading. The
           # lock keeps one sdkmanager at a time on runners whose slots share an SDK.
-          (yes || true) | flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager --licenses > /dev/null
-          flock "$ANDROID_HOME/.tidefell-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
+          (yes || true) | flock "$ANDROID_HOME/.shoal-ci.lock" sdkmanager --licenses > /dev/null
+          flock "$ANDROID_HOME/.shoal-ci.lock" sdkmanager "ndk;$NDK_VERSION" "platforms;android-36"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
           monorepo="${CARGO_HOME:-$HOME/.cargo}/android-monorepo"
           # Keep it bounded, within a runner slot's disk budget: cargo starts again once its
@@ -166,15 +166,15 @@ jobs:
             rm -rf "$monorepo/target"
           fi
           scripts/monorepo.sh "$monorepo"
-          echo "GRADLE_FFI=-PtidefellFfiLocalPath=$monorepo -Ptidefell.abis=x86_64" >> "$GITHUB_ENV"
-      # The same release's tidefelld and tidefell, built by Nix from its source.
-      - name: The pinned release's tidefelld
+          echo "GRADLE_FFI=-PshoalFfiLocalPath=$monorepo -Pshoal.abis=x86_64" >> "$GITHUB_ENV"
+      # The same release's shoald and shoal, built by Nix from its source.
+      - name: The pinned release's shoald
         run: |
-          version=$(sed -n 's/^tidefell = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          version=$(sed -n 's/^shoal = "\(.*\)"/\1/p' gradle/libs.versions.toml)
           out=$(nix build --no-link --print-out-paths --print-build-logs \
-            "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v$version#tidefell")
+            "git+ssh://git@github.com/ShoalSync/shoal?ref=refs/tags/v$version#shoal")
           echo "$out/bin" >> "$GITHUB_PATH"
-          "$out/bin/tidefelld" --version
+          "$out/bin/shoald" --version
       # Kept per runner slot, under its CARGO_HOME, and built once per version.
       - name: iroh-relay
         run: |
@@ -250,6 +250,9 @@ jobs:
         run: git ls-files -z '*.sh' | xargs -0 shellcheck
       - name: typos
         run: typos
+      # The old name stays out of the tree (ADR 0043 in the monorepo).
+      - name: The old name stays out
+        run: scripts/check-old-name.sh
 
   # The workflows themselves (ADR 0031): actionlint, and zizmor, whose findings of medium
   # severity or higher fail, so actions stay pinned by commit.

@@ -6,7 +6,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 version=1.23.8
-cache="${XDG_CACHE_HOME:-$HOME/.cache}/tidefell-detekt/$version"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/shoal-detekt/$version"
 mkdir -p "$cache"
 fetch() {
   local name=$1 sha=$2

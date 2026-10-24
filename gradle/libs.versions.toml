@@ -1,6 +1,6 @@
 [versions]
 # The monorepo release this app is built against (ADR 0014). Bump deliberately.
-tidefell = "0.23.0"
+shoal = "0.24.0-rc.1"
 agp = "9.4.1"
 kotlin = "2.4.21"
 coroutines = "1.11.0"
@@ -20,7 +20,7 @@ roborazzi = "1.76.0"
 
 [libraries]
 # Built from the pinned monorepo checkout that settings.gradle.kts includes, so it has no version.
-tidefell-ffi = { module = "org.tidefell:tidefell-ffi" }
+shoal-ffi = { module = "org.shoalsync:shoal-ffi" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }

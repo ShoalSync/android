@@ -1,11 +1,13 @@
-# Tidefell for Android
+# Shoal for Android
 
-Android client for [Tidefell](https://github.com/tidefell/tidefell), open-source peer-to-peer
+Shoal Sync, formerly Tidefell.
+
+Android client for [Shoal](https://github.com/ShoalSync/shoal), open-source peer-to-peer
 file sync with no central server.
 
 - **Kotlin + Jetpack Compose** user interface.
-- **Full peer on the device.** The Tidefell engine runs as a foreground service through the
-  `tidefell-ffi` AAR (uniffi bindings to the Rust core), so the phone is a real peer rather than a
+- **Full peer on the device.** The Shoal engine runs as a foreground service through the
+  `shoal-ffi` AAR (uniffi bindings to the Rust core), so the phone is a real peer rather than a
   thin client.
 - **Placeholders via `DocumentsProvider`.** Files appear in the system file picker and other apps
   without being stored locally; contents are fetched from peers on demand.
@@ -14,27 +16,27 @@ file sync with no central server.
 
 ## Building
 
-The app's `tidefell-ffi` is built from the source of the monorepo release pinned in
-[`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`tidefell = "X.Y.Z"`), so building
+The app's `shoal-ffi` is built from the source of the monorepo release pinned in
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml) (`shoal = "X.Y.Z"`), so building
 needs Rust, the NDK and `cargo-ndk` as well as JDK 21 and the Android SDK (compile SDK 37;
 minimum SDK 30, Android 11, for All files access).
 
 ```sh
-scripts/monorepo.sh           # checks out the pinned release in build/tidefell
-./gradlew :app:assembleDebug -Ptidefell.abis=x86_64   # one ABI is quicker while developing
+scripts/monorepo.sh           # checks out the pinned release in build/shoal
+./gradlew :app:assembleDebug -Pshoal.abis=x86_64   # one ABI is quicker while developing
 ```
 
-The monorepo is private, so git needs an SSH key that can read `tidefell/tidefell` on Forgejo.
+The monorepo is private, so git needs an SSH key that can read `shoal/shoal` on Forgejo.
 To work on the FFI itself, build against another checkout instead:
 
 ```sh
-./gradlew :app:assembleDebug -PtidefellFfiLocalPath=../tidefell -Ptidefell.abis=x86_64
+./gradlew :app:assembleDebug -PshoalFfiLocalPath=../shoal -Pshoal.abis=x86_64
 ```
 
 ## How it works
 
 - **Pairing.** A new phone shows a pairing code as a QR code. A device holding your user key
-  approves it with `tidefell pair <code>` after both show the same six-digit confirmation code
+  approves it with `shoal pair <code>` after both show the same six-digit confirmation code
   (ADR 0015).
 - **Folders (ADR 0025).** A folder lives either in a folder on the phone, such as the camera
   folder, Documents or Download, or inside the app with files on demand. After pairing, the phone
@@ -73,7 +75,7 @@ To work on the FFI itself, build against another checkout instead:
 - **Pause, speed and keeping files.** Syncing can be paused for a folder or the whole phone,
   upload and download speed limited, and files kept on the phone outside the space budget.
 - **Crashes.** Engine logs go to logcat and to files in the app's data, and crashes of the engine
-  or the app are recorded. The app says when Tidefell stopped and offers to start syncing again.
+  or the app are recorded. The app says when Shoal stopped and offers to start syncing again.
   *Report* writes the crash up as an issue, with home directories taken out: it opens a new issue
   on the tracker set in Settings, filled in for the user to read and send, or shares the report
   without one (ADR 0030).
@@ -89,7 +91,7 @@ To work on the FFI itself, build against another checkout instead:
 `./gradlew :app:testDebugUnitTest` runs the unit tests.
 
 Every screen, in each state worth seeing (empty, paused, with problems, a dialog open), has a
-screenshot test in `app/src/test/kotlin/org/tidefell/android/ui/screenshots/`. Robolectric draws
+screenshot test in `app/src/test/kotlin/org/shoalsync/android/ui/screenshots/`. Robolectric draws
 the screens on the JVM with fixed data, through the `HomeModel`, `SettingsModel`, `StatusModel`,
 `AddFolderModel` and `PairingModel` interfaces the view models implement, so no node runs.
 Roborazzi compares them with the images in `app/src/test/screenshots/`:
@@ -105,7 +107,7 @@ rules (ADR 0031). Both fail on any finding not in their baselines, `app/lint-bas
 `detekt-baseline.xml`; fix a new finding rather than adding it to a baseline.
 
 `scripts/ci-exit-criterion.sh` runs the exit criteria on an emulator: the app pairs with the
-pinned release's `tidefelld` on the host through a local iroh relay, joins one of its folders
+pinned release's `shoald` on the host through a local iroh relay, joins one of its folders
 with files on demand, opens a file through the documents provider and saves one that syncs back.
 It then joins a second folder at a folder on the phone with remove after backup: a photo taken
 there must reach the daemon, and move to the phone's recycle bin only after the daemon, a full
@@ -118,7 +120,7 @@ and into a diagnostics bundle without full IDs or paths. CI runs it on every pus
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). A signed CLA is required.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Conventions
 
@@ -126,4 +128,19 @@ Read [CONVENTIONS.md](CONVENTIONS.md) before making changes.
 
 ## License
 
-[GNU Affero General Public License v3.0 only](LICENSE) (`AGPL-3.0-only`).
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+All earlier versions of this code, including commits made under the name Tidefell, are also
+available under MIT OR Apache-2.0.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without
+any additional terms or conditions.

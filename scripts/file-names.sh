@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Runs FileNamesTest (ADR 0033) on a running emulator against tidefelld on this host: names that
+# Runs FileNamesTest (ADR 0033) on a running emulator against shoald on this host: names that
 # fold together in shared storage, and a name a FAT volume refuses.
 #
 # Needs what scripts/ci-exit-criterion.sh needs, and an emulator image that allows `adb root`
 # (google_apis), to add a virtual SD card formatted as FAT. Arguments are passed on to Gradle,
-# such as -PtidefellFfiLocalPath=<monorepo> to test another monorepo checkout.
+# such as -PshoalFfiLocalPath=<monorepo> to test another monorepo checkout.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -56,16 +56,16 @@ done
 adb shell mount | grep -q "/mnt/media_rw/$volume type vfat" || { echo "/storage/$volume is not FAT" >&2; exit 1; }
 
 # The laptop: Names holds two photos whose names differ only in case, Card a name FAT refuses.
-tidefelld init --data-dir "$work/laptop" --name laptop
-user=$(tidefelld id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
-names=$(tidefelld new-folder-id)
-card=$(tidefelld new-folder-id)
+shoald init --data-dir "$work/laptop" --name laptop
+user=$(shoald id --data-dir "$work/laptop" | awk '$1 == "user:" { print $2 }')
+names=$(shoald new-folder-id)
+card=$(shoald new-folder-id)
 mkdir -p "$work/Names" "$work/Card"
 printf 'upper' > "$work/Names/Photo.jpg"
 printf 'lower' > "$work/Names/photo.jpg"
 printf 'colon' > "$work/Card/a:b.txt"
 printf 'fine' > "$work/Card/ok.txt"
-cat > "$work/tidefelld.toml" <<TOML
+cat > "$work/shoald.toml" <<TOML
 data_dir = "$work/laptop"
 
 [network]
@@ -88,28 +88,28 @@ members = ["$user"]
 retention_days = 30
 scan_interval_secs = 1
 TOML
-RUST_LOG=info tidefelld run --config "$work/tidefelld.toml" > "$work/daemon.log" 2>&1 &
+RUST_LOG=info shoald run --config "$work/shoald.toml" > "$work/daemon.log" 2>&1 &
 pids+=($!)
 for _ in $(seq 1 30); do
   [ -S "$work/laptop/control.sock" ] && break
   sleep 1
 done
-[ -S "$work/laptop/control.sock" ] || { echo "tidefelld did not start" >&2; exit 1; }
+[ -S "$work/laptop/control.sock" ] || { echo "shoald did not start" >&2; exit 1; }
 
 adb logcat -c
 (
   until code=$(adb logcat -d -s FileNames:I | grep -o 'TFP1-[A-Z0-9]*' | tail -1) && [ -n "$code" ]; do
     sleep 1
   done
-  tidefell --data-dir "$work/laptop" pair --yes --name "Emulator" "$code"
+  shoal --data-dir "$work/laptop" pair --yes --name "Emulator" "$code"
 ) > "$work/approver.log" 2>&1 &
 pids+=($!)
 
 status=0
 ./gradlew --no-daemon :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=org.tidefell.android.FileNamesTest \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellRelay="$relay_url" \
-  -Pandroid.testInstrumentationRunnerArguments.tidefellFatVolume="/storage/$volume" "$@" || status=$?
+  -Pandroid.testInstrumentationRunnerArguments.class=org.shoalsync.android.FileNamesTest \
+  -Pandroid.testInstrumentationRunnerArguments.shoalRelay="$relay_url" \
+  -Pandroid.testInstrumentationRunnerArguments.shoalFatVolume="/storage/$volume" "$@" || status=$?
 
 # The daemon keeps both photos, as they were.
 echo "daemon's Names: $(cd "$work/Names" && for f in *; do printf '%s=%s ' "$f" "$(cat "$f")"; done)"
