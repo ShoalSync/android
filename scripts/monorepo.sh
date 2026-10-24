@@ -3,15 +3,12 @@
 # build/shoal unless given, for the build to compile shoal-ffi from (ADR 0014 as amended).
 # A checkout from an earlier run is moved to the tag rather than cloned again, so its target/
 # keeps cargo's incremental state.
-#
-# The monorepo is private: git needs an SSH key that can read shoal/shoal on Forgejo
-# (GIT_SSH_COMMAND in CI).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 version=$(sed -n 's/^shoal = "\(.*\)"/\1/p' gradle/libs.versions.toml)
 dir=${1:-build/shoal}
-url=ssh://git@github.com/ShoalSync/shoal.git
+url=https://github.com/ShoalSync/shoal.git
 
 if [ ! -d "$dir/.git" ]; then
   rm -rf "$dir"
