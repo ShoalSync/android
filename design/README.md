@@ -65,7 +65,7 @@ A group's `base` is the plain name, and `on` comes first:
   sets Inter's optical size from each style's size; screens use `ShoalSpace` and
   `ShoalSize` directly, and `ShoalIcons` (`dist/android/kotlin/.../Icons.kt`) for
   icons. The resources colour the window and the launcher icon, and carry the font.
-- **Website** (`shoal/site`): `static/tokens.css` is a copy of `dist/css/tokens.css`. After
+- **Website** (`ShoalSync/site`): `static/tokens.css` is a copy of `dist/css/tokens.css`. After
   changing a colour, copy it there in a pull request of its own.
 - **Apple apps** (planned): a Swift output joins `dist/` when the iOS app starts, and
   `dist/icons/*.svg` go into its asset catalog. Lucide's licence (ISC) is in

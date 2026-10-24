@@ -26,8 +26,8 @@ scripts/monorepo.sh           # checks out the pinned release in build/shoal
 ./gradlew :app:assembleDebug -Pshoal.abis=x86_64   # one ABI is quicker while developing
 ```
 
-The monorepo is private, so git needs an SSH key that can read `shoal/shoal` on Forgejo.
-To work on the FFI itself, build against another checkout instead:
+The script fetches the release from `https://github.com/ShoalSync/shoal`. To work on the FFI
+itself, build against another checkout instead:
 
 ```sh
 ./gradlew :app:assembleDebug -PshoalFfiLocalPath=../shoal -Pshoal.abis=x86_64
