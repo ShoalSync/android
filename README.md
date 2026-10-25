@@ -1,7 +1,5 @@
 # Shoal for Android
 
-Shoal Sync, formerly Tidefell.
-
 Android client for [Shoal](https://github.com/ShoalSync/shoal), open-source peer-to-peer
 file sync with no central server.
 
@@ -136,8 +134,7 @@ Licensed under either of
 
 at your option.
 
-All earlier versions of this code, including commits made under the name Tidefell, are also
-available under MIT OR Apache-2.0.
+All earlier versions of this code are also available under MIT OR Apache-2.0.
 
 ### Contribution
 
